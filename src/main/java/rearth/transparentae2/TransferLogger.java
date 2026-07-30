@@ -5,11 +5,11 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.parts.AEBasePart;
 import appeng.parts.automation.ExportBusPart;
 import appeng.parts.automation.ImportBusPart;
@@ -24,6 +24,7 @@ public final class TransferLogger {
         if (amount > 0 && what instanceof AEItemKey item) {
             var kind = source.machine().orElse(null) instanceof ImportBusPart ? "IMPORT" : "INSERT";
             log(kind, item, amount, sourceEndpoint(source, true), NETWORK);
+            logPath(kind, item, amount, sourceNode(source), false);
         }
     }
 
@@ -31,13 +32,17 @@ public final class TransferLogger {
         if (amount > 0 && what instanceof AEItemKey item) {
             var kind = source.machine().orElse(null) instanceof ExportBusPart ? "EXPORT" : "EXTRACT";
             log(kind, item, amount, NETWORK, sourceEndpoint(source, false));
+            logPath(kind, item, amount, sourceNode(source), true);
         }
     }
 
-    public static void logCraftingDispatch(AEKey what, long amount, PatternProviderLogicHost provider) {
+    public static void logCraftingDispatch(AEKey what, long amount, IGridNode cpu, IGridNode provider) {
         if (amount > 0 && what instanceof AEItemKey item) {
             log("CRAFTING", item, amount, "crafting CPU",
-                    "pattern provider " + describe(provider.getBlockEntity()));
+                    "crafting provider " + describeNode(provider));
+            if (Config.LOG_TRANSFER_PATHS.getAsBoolean()) {
+                logPath("CRAFTING", item, amount, TransferPathResolver.resolveCrafting(cpu, provider));
+            }
         }
     }
 
@@ -51,6 +56,28 @@ public final class TransferLogger {
         var components = stack.getComponentsPatch().isEmpty() ? "" : " components=" + stack.getComponentsPatch();
         TransparentAE2.LOGGER.info("[AE2 TRANSFER/{}] {}x {}{} | {} -> {}",
                 kind, amount, itemId, components, from, to);
+    }
+
+    private static void logPath(
+            String kind,
+            AEItemKey item,
+            long amount,
+            IGridNode endpoint,
+            boolean controllerFirst) {
+        if (Config.LOG_TRANSFER_PATHS.getAsBoolean()) {
+            logPath(kind, item, amount, TransferPathResolver.resolve(endpoint, controllerFirst));
+        }
+    }
+
+    private static void logPath(String kind, AEItemKey item, long amount, String path) {
+        var itemId = BuiltInRegistries.ITEM.getKey(item.getItem());
+        TransparentAE2.LOGGER.info("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path);
+    }
+
+    private static IGridNode sourceNode(IActionSource source) {
+        return source.machine()
+                .map(IActionHost::getActionableNode)
+                .orElse(null);
     }
 
     private static String sourceEndpoint(IActionSource source, boolean inserting) {
@@ -91,6 +118,21 @@ public final class TransferLogger {
         }
 
         return machine.getClass().getSimpleName();
+    }
+
+    private static String describeNode(IGridNode node) {
+        if (node == null) {
+            return "(unknown position)";
+        }
+
+        var owner = node.getOwner();
+        if (owner instanceof BlockEntity blockEntity) {
+            return owner.getClass().getSimpleName() + " " + describe(blockEntity);
+        }
+        if (owner instanceof AEBasePart part) {
+            return owner.getClass().getSimpleName() + " " + describe(part.getBlockEntity());
+        }
+        return owner.getClass().getSimpleName() + " (no world position)";
     }
 
     private static String describePlayer(Player player) {

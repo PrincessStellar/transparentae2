@@ -3,8 +3,8 @@
   "package": "rearth.transparentae2.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "NetworkStorageMixin",
-    "PatternProviderLogicMixin"
+    "CraftingCpuLogicMixin",
+    "NetworkStorageMixin"
   ],
   "injectors": {
     "defaultRequire": 1

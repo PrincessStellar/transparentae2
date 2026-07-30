@@ -9,5 +9,9 @@ public class Config {
             .comment("Log successful AE2 item transfers. Intended for prototype validation.")
             .define("logItemTransfers", true);
 
+    public static final ModConfigSpec.BooleanValue LOG_TRANSFER_PATHS = BUILDER
+            .comment("Log the AE2 channel route associated with each logged item transfer.")
+            .define("logTransferPaths", true);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 }
