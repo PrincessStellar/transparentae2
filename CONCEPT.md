@@ -46,11 +46,15 @@ Each successfully resolved route is sent to players within 128 blocks of any rou
 payload contains the transfer kind, complete component-bearing display stack, amount, and the
 ordered dimension-aware block positions for each route leg.
 
-The client keeps at most 32 received transfers. It renders the stack moving along the route at four
-blocks per second. The item follows a line raised by half a block from the normal block center,
-placing it at `Y + 1.0`, so it remains distinguishable from cables and machines. Crafting routes and
-routes split by virtual connections are traversed segment by segment; the item teleports across the
-unrenderable gap rather than drawing a false connection through the world.
+The client keeps at most 128 received transfers. It renders the stack moving along the route at
+eight blocks per second. Items travel through the exact block center without an elevation or
+lateral offset. Their rendered scale is derived from the smallest cable class along the resolved
+route: normal non-smart cables use `0.8x`, smart cables use `1.2x`, and dense cables use `2.0x`.
+The renderer counteracts the ground item-model transform's upward translation after scaling, so
+the visual item remains centered vertically at every size. Mixed routes use the smallest class
+encountered. Crafting routes and routes split by virtual connections are traversed segment by
+segment; the item teleports across the unrenderable gap rather than drawing a false connection
+through the world.
 
 The optional line debugger can be enabled with `debugRenderTransferPaths` in
 `transparentae2-client.toml` and is disabled by default. It draws only colored route lines for five
@@ -97,6 +101,10 @@ Transparent ME Smart Cable, Transparent ME Dense Smart Cable, and Transparent ME
 Cable are also available as dedicated Fluix-colored placement items. They carry the treatment
 component by default, so they render with the cutout immediately after placement. AE2's color
 applicator can recolor them after placement while retaining the treatment state.
+
+Each dedicated cable is crafted eight at a time with eight matching Fluix AE2 cables surrounding
+one quartz glass in a 3x3 grid. A single transparent cable by itself in any crafting grid converts
+back into its corresponding normal Fluix AE2 cable.
 
 Treatment is stored on the cable part and synchronized as part of its normal update data. It is
 also copied to the dropped cable item's data component when dismantled, so it survives breaking,

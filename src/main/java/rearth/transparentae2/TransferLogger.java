@@ -96,7 +96,12 @@ public final class TransferLogger {
             TransparentAE2.LOGGER.info("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path.format());
         }
         if (path.available()) {
-            var payload = new TransferPathPayload(kind, item.getReadOnlyStack(), amount, path.positions());
+            var payload = new TransferPathPayload(
+                    kind,
+                    item.getReadOnlyStack(),
+                    amount,
+                    path.positions(),
+                    path.minimumCableWidth());
             TransferPathNetworking.send(payload, anchor);
         }
     }

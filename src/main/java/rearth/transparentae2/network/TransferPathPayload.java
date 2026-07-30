@@ -15,9 +15,12 @@ public record TransferPathPayload(
         PathKind kind,
         ItemStack stack,
         long amount,
-        List<List<GlobalPos>> legs) implements CustomPacketPayload {
+        List<List<GlobalPos>> legs,
+        int minimumCableWidth) implements CustomPacketPayload {
     private static final int MAX_LEGS = 64;
     private static final int MAX_POINTS_PER_LEG = 512;
+    private static final int MIN_CABLE_WIDTH = 1;
+    private static final int MAX_CABLE_WIDTH = 10;
 
     public static final Type<TransferPathPayload> TYPE = new Type<>(
             Identifier.fromNamespaceAndPath(TransparentAE2.MODID, "transfer_path"));
@@ -31,6 +34,9 @@ public record TransferPathPayload(
         legs = legs.stream().map(List::copyOf).toList();
         if (legs.size() > MAX_LEGS || legs.stream().anyMatch(leg -> leg.size() > MAX_POINTS_PER_LEG)) {
             throw new IllegalArgumentException("Transfer path exceeds payload limits");
+        }
+        if (minimumCableWidth < MIN_CABLE_WIDTH || minimumCableWidth > MAX_CABLE_WIDTH) {
+            throw new IllegalArgumentException("Invalid minimum cable width " + minimumCableWidth);
         }
     }
 
@@ -50,6 +56,7 @@ public record TransferPathPayload(
                 GlobalPos.STREAM_CODEC.encode(buffer, point);
             }
         }
+        buffer.writeVarInt(minimumCableWidth);
     }
 
     private static TransferPathPayload decode(RegistryFriendlyByteBuf buffer) {
@@ -70,7 +77,8 @@ public record TransferPathPayload(
             }
             legs.add(points);
         }
-        return new TransferPathPayload(PathKind.values()[kindIndex], stack, amount, legs);
+        var minimumCableWidth = buffer.readVarInt();
+        return new TransferPathPayload(PathKind.values()[kindIndex], stack, amount, legs, minimumCableWidth);
     }
 
     private static int readBoundedSize(RegistryFriendlyByteBuf buffer, int maximum, String name) {

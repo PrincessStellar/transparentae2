@@ -12,9 +12,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.pathing.ControllerState;
+import appeng.api.util.AECableType;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.me.pathfinding.IPathItem;
 import appeng.parts.AEBasePart;
+import appeng.parts.networking.CablePart;
 
 final class TransferPathResolver {
     private TransferPathResolver() {
@@ -119,20 +121,34 @@ final class TransferPathResolver {
             return describe(owner.getClass().getSimpleName(), blockEntity);
         }
         if (owner instanceof AEBasePart part) {
-            return describe(owner.getClass().getSimpleName(), part.getBlockEntity());
+            var cableWidth = part instanceof CablePart cable ? minimumCableWidth(cable.getCableConnectionType()) : 0;
+            return describe(owner.getClass().getSimpleName(), part.getBlockEntity(), cableWidth);
         }
-        return new PathPoint(null, owner.getClass().getSimpleName() + " (no world position)");
+        return new PathPoint(null, owner.getClass().getSimpleName() + " (no world position)", 0);
     }
 
     private static PathPoint describe(String type, BlockEntity blockEntity) {
+        return describe(type, blockEntity, 0);
+    }
+
+    private static PathPoint describe(String type, BlockEntity blockEntity, int cableWidth) {
         var level = blockEntity.getLevel();
         if (level == null) {
-            return new PathPoint(null, type + " @ unloaded " + blockEntity.getBlockPos().toShortString());
+            return new PathPoint(null, type + " @ unloaded " + blockEntity.getBlockPos().toShortString(), cableWidth);
         }
 
         var position = GlobalPos.of(level.dimension(), blockEntity.getBlockPos());
         return new PathPoint(position, type + " @ " + level.dimension().identifier() + " "
-                + blockEntity.getBlockPos().toShortString());
+                + blockEntity.getBlockPos().toShortString(), cableWidth);
+    }
+
+    private static int minimumCableWidth(AECableType cableType) {
+        return switch (cableType) {
+            case DENSE_COVERED, DENSE_SMART -> 10;
+            case SMART -> 6;
+            case GLASS, COVERED -> 4;
+            default -> 0;
+        };
     }
 
     record ResolvedPath(List<PathLeg> legs, String failure) {
@@ -168,6 +184,15 @@ final class TransferPathResolver {
                 addSegment(result, segment);
             }
             return List.copyOf(result);
+        }
+
+        int minimumCableWidth() {
+            return legs.stream()
+                    .flatMap(leg -> leg.points.stream())
+                    .mapToInt(PathPoint::cableWidth)
+                    .filter(width -> width > 0)
+                    .min()
+                    .orElse(4);
         }
 
         String format() {
@@ -214,7 +239,7 @@ final class TransferPathResolver {
         }
     }
 
-    record PathPoint(GlobalPos position, String label) {
+    record PathPoint(GlobalPos position, String label, int cableWidth) {
     }
 
     record PathHop(int usedChannels, boolean inWorld) {
