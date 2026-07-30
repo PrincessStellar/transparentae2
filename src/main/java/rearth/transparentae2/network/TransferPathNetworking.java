@@ -1,0 +1,47 @@
+package rearth.transparentae2.network;
+
+import java.util.List;
+
+import net.minecraft.core.GlobalPos;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+
+import appeng.api.networking.IGridNode;
+
+public final class TransferPathNetworking {
+    private static final double VIEW_DISTANCE_SQUARED = 128.0 * 128.0;
+
+    private TransferPathNetworking() {
+    }
+
+    public static void register(RegisterPayloadHandlersEvent event) {
+        event.registrar("1").playToClient(TransferPathPayload.TYPE, TransferPathPayload.STREAM_CODEC);
+    }
+
+    public static void send(TransferPathPayload payload, IGridNode anchor) {
+        if (anchor == null) {
+            return;
+        }
+
+        MinecraftServer server = anchor.getLevel().getServer();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (isNearPath(player, payload.legs())) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+        }
+    }
+
+    private static boolean isNearPath(ServerPlayer player, List<List<GlobalPos>> legs) {
+        for (var leg : legs) {
+            for (var point : leg) {
+                if (point.dimension().equals(player.level().dimension())
+                        && point.pos().distSqr(player.blockPosition()) <= VIEW_DISTANCE_SQUARED) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}

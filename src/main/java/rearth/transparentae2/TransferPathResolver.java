@@ -6,6 +6,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
+import net.minecraft.core.GlobalPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import appeng.api.networking.IGridConnection;
@@ -19,10 +20,10 @@ final class TransferPathResolver {
     private TransferPathResolver() {
     }
 
-    static String resolve(IGridNode endpoint, boolean controllerFirst) {
+    static ResolvedPath resolve(IGridNode endpoint, boolean controllerFirst) {
         var route = routeToController(endpoint);
         if (route.failure != null) {
-            return "unavailable: " + route.failure;
+            return ResolvedPath.failed(route.failure);
         }
 
         var points = new ArrayList<>(route.points);
@@ -32,18 +33,18 @@ final class TransferPathResolver {
             Collections.reverse(hops);
         }
 
-        return format(points, hops);
+        return ResolvedPath.of(new PathLeg(List.copyOf(points), List.copyOf(hops)));
     }
 
-    static String resolveCrafting(IGridNode cpu, IGridNode provider) {
+    static ResolvedPath resolveCrafting(IGridNode cpu, IGridNode provider) {
         var cpuRoute = routeToController(cpu);
         var providerRoute = routeToController(provider);
 
         if (cpuRoute.failure != null || providerRoute.failure != null) {
-            return "unavailable: CPU route="
+            return ResolvedPath.failed("CPU route="
                     + failureOrOk(cpuRoute)
                     + ", provider route="
-                    + failureOrOk(providerRoute);
+                    + failureOrOk(providerRoute));
         }
 
         var providerPoints = new ArrayList<>(providerRoute.points);
@@ -51,10 +52,9 @@ final class TransferPathResolver {
         Collections.reverse(providerPoints);
         Collections.reverse(providerHops);
 
-        return "CPU -> controller: "
-                + format(cpuRoute.points, cpuRoute.hops)
-                + " || controller -> provider: "
-                + format(providerPoints, providerHops);
+        return ResolvedPath.of(
+                new PathLeg(cpuRoute.points, cpuRoute.hops),
+                new PathLeg(List.copyOf(providerPoints), List.copyOf(providerHops)));
     }
 
     private static Route routeToController(IGridNode endpoint) {
@@ -109,22 +109,6 @@ final class TransferPathResolver {
         return new Route(List.copyOf(points), List.copyOf(hops), null);
     }
 
-    private static String format(List<PathPoint> points, List<PathHop> hops) {
-        var result = new StringBuilder();
-        for (int i = 0; i < points.size(); i++) {
-            if (i > 0) {
-                var hop = hops.get(i - 1);
-                result.append(" --[used=")
-                        .append(hop.usedChannels)
-                        .append(", ")
-                        .append(hop.inWorld ? "cable" : "internal/virtual")
-                        .append("]--> ");
-            }
-            result.append(points.get(i).label);
-        }
-        return result.toString();
-    }
-
     private static String failureOrOk(Route route) {
         return route.failure == null ? "ok" : route.failure;
     }
@@ -132,18 +116,78 @@ final class TransferPathResolver {
     private static PathPoint describe(IGridNode node) {
         var owner = node.getOwner();
         if (owner instanceof BlockEntity blockEntity) {
-            return new PathPoint(describe(owner.getClass().getSimpleName(), blockEntity));
+            return describe(owner.getClass().getSimpleName(), blockEntity);
         }
         if (owner instanceof AEBasePart part) {
-            return new PathPoint(describe(owner.getClass().getSimpleName(), part.getBlockEntity()));
+            return describe(owner.getClass().getSimpleName(), part.getBlockEntity());
         }
-        return new PathPoint(owner.getClass().getSimpleName() + " (no world position)");
+        return new PathPoint(null, owner.getClass().getSimpleName() + " (no world position)");
     }
 
-    private static String describe(String type, BlockEntity blockEntity) {
+    private static PathPoint describe(String type, BlockEntity blockEntity) {
         var level = blockEntity.getLevel();
-        var dimension = level == null ? "unloaded" : level.dimension().identifier().toString();
-        return type + " @ " + dimension + " " + blockEntity.getBlockPos().toShortString();
+        if (level == null) {
+            return new PathPoint(null, type + " @ unloaded " + blockEntity.getBlockPos().toShortString());
+        }
+
+        var position = GlobalPos.of(level.dimension(), blockEntity.getBlockPos());
+        return new PathPoint(position, type + " @ " + level.dimension().identifier() + " "
+                + blockEntity.getBlockPos().toShortString());
+    }
+
+    record ResolvedPath(List<PathLeg> legs, String failure) {
+        static ResolvedPath of(PathLeg... legs) {
+            return new ResolvedPath(List.of(legs), null);
+        }
+
+        static ResolvedPath failed(String reason) {
+            return new ResolvedPath(List.of(), reason);
+        }
+
+        boolean available() {
+            return failure == null;
+        }
+
+        List<List<GlobalPos>> positions() {
+            var result = new ArrayList<List<GlobalPos>>();
+            for (var leg : legs) {
+                var segment = new ArrayList<GlobalPos>();
+                for (int pointIndex = 0; pointIndex < leg.points.size(); pointIndex++) {
+                    var point = leg.points.get(pointIndex).position;
+                    if (pointIndex > 0 && !leg.hops.get(pointIndex - 1).inWorld) {
+                        addSegment(result, segment);
+                        segment = new ArrayList<>();
+                    }
+                    if (point == null) {
+                        addSegment(result, segment);
+                        segment = new ArrayList<>();
+                    } else {
+                        segment.add(point);
+                    }
+                }
+                addSegment(result, segment);
+            }
+            return List.copyOf(result);
+        }
+
+        String format() {
+            if (failure != null) {
+                return "unavailable: " + failure;
+            }
+            if (legs.size() == 1) {
+                return legs.getFirst().format();
+            }
+            return "CPU -> controller: "
+                    + legs.get(0).format()
+                    + " || controller -> provider: "
+                    + legs.get(1).format();
+        }
+
+        private static void addSegment(List<List<GlobalPos>> result, List<GlobalPos> segment) {
+            if (!segment.isEmpty()) {
+                result.add(List.copyOf(segment));
+            }
+        }
     }
 
     private record Route(List<PathPoint> points, List<PathHop> hops, String failure) {
@@ -152,9 +196,27 @@ final class TransferPathResolver {
         }
     }
 
-    private record PathPoint(String label) {
+    record PathLeg(List<PathPoint> points, List<PathHop> hops) {
+        String format() {
+            var result = new StringBuilder();
+            for (int i = 0; i < points.size(); i++) {
+                if (i > 0) {
+                    var hop = hops.get(i - 1);
+                    result.append(" --[used=")
+                            .append(hop.usedChannels)
+                            .append(", ")
+                            .append(hop.inWorld ? "cable" : "internal/virtual")
+                            .append("]--> ");
+                }
+                result.append(points.get(i).label);
+            }
+            return result.toString();
+        }
     }
 
-    private record PathHop(int usedChannels, boolean inWorld) {
+    record PathPoint(GlobalPos position, String label) {
+    }
+
+    record PathHop(int usedChannels, boolean inWorld) {
     }
 }

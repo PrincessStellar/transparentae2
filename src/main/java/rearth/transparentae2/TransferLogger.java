@@ -13,6 +13,9 @@ import appeng.api.stacks.AEKey;
 import appeng.parts.AEBasePart;
 import appeng.parts.automation.ExportBusPart;
 import appeng.parts.automation.ImportBusPart;
+import rearth.transparentae2.network.TransferPathNetworking;
+import rearth.transparentae2.network.TransferPathPayload;
+import rearth.transparentae2.network.TransferPathPayload.PathKind;
 
 public final class TransferLogger {
     private static final String NETWORK = "ME network";
@@ -21,28 +24,45 @@ public final class TransferLogger {
     }
 
     public static void logNetworkInsert(AEKey what, long amount, IActionSource source) {
-        if (amount > 0 && what instanceof AEItemKey item) {
-            var kind = source.machine().orElse(null) instanceof ImportBusPart ? "IMPORT" : "INSERT";
-            log(kind, item, amount, sourceEndpoint(source, true), NETWORK);
-            logPath(kind, item, amount, sourceNode(source), false);
+        try {
+            if (amount > 0 && what instanceof AEItemKey item) {
+                var kind = source.machine().orElse(null) instanceof ImportBusPart ? PathKind.IMPORT : PathKind.INSERT;
+                log(kind.name(), item, amount, sourceEndpoint(source, true), NETWORK);
+                handlePath(kind, item, amount, sourceNode(source), false);
+            }
+        } catch (RuntimeException e) {
+            TransparentAE2.LOGGER.warn("Failed to observe AE2 network insertion", e);
         }
     }
 
     public static void logNetworkExtract(AEKey what, long amount, IActionSource source) {
-        if (amount > 0 && what instanceof AEItemKey item) {
-            var kind = source.machine().orElse(null) instanceof ExportBusPart ? "EXPORT" : "EXTRACT";
-            log(kind, item, amount, NETWORK, sourceEndpoint(source, false));
-            logPath(kind, item, amount, sourceNode(source), true);
+        try {
+            if (amount > 0 && what instanceof AEItemKey item) {
+                var kind = source.machine().orElse(null) instanceof ExportBusPart ? PathKind.EXPORT : PathKind.EXTRACT;
+                log(kind.name(), item, amount, NETWORK, sourceEndpoint(source, false));
+                handlePath(kind, item, amount, sourceNode(source), true);
+            }
+        } catch (RuntimeException e) {
+            TransparentAE2.LOGGER.warn("Failed to observe AE2 network extraction", e);
         }
     }
 
     public static void logCraftingDispatch(AEKey what, long amount, IGridNode cpu, IGridNode provider) {
-        if (amount > 0 && what instanceof AEItemKey item) {
-            log("CRAFTING", item, amount, "crafting CPU",
-                    "crafting provider " + describeNode(provider));
-            if (Config.LOG_TRANSFER_PATHS.getAsBoolean()) {
-                logPath("CRAFTING", item, amount, TransferPathResolver.resolveCrafting(cpu, provider));
+        try {
+            if (amount > 0 && what instanceof AEItemKey item) {
+                log("CRAFTING", item, amount, "crafting CPU",
+                        "crafting provider " + describeNode(provider));
+                if (shouldResolvePaths()) {
+                    handleResolvedPath(
+                            PathKind.CRAFTING,
+                            item,
+                            amount,
+                            TransferPathResolver.resolveCrafting(cpu, provider),
+                            cpu != null ? cpu : provider);
+                }
             }
+        } catch (RuntimeException e) {
+            TransparentAE2.LOGGER.warn("Failed to observe AE2 crafting dispatch", e);
         }
     }
 
@@ -58,20 +78,35 @@ public final class TransferLogger {
                 kind, amount, itemId, components, from, to);
     }
 
-    private static void logPath(
-            String kind,
+    private static void handlePath(
+            PathKind kind,
             AEItemKey item,
             long amount,
             IGridNode endpoint,
             boolean controllerFirst) {
-        if (Config.LOG_TRANSFER_PATHS.getAsBoolean()) {
-            logPath(kind, item, amount, TransferPathResolver.resolve(endpoint, controllerFirst));
+        if (shouldResolvePaths()) {
+            handleResolvedPath(kind, item, amount, TransferPathResolver.resolve(endpoint, controllerFirst), endpoint);
         }
     }
 
-    private static void logPath(String kind, AEItemKey item, long amount, String path) {
+    private static void handleResolvedPath(
+            PathKind kind,
+            AEItemKey item,
+            long amount,
+            TransferPathResolver.ResolvedPath path,
+            IGridNode anchor) {
         var itemId = BuiltInRegistries.ITEM.getKey(item.getItem());
-        TransparentAE2.LOGGER.info("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path);
+        if (Config.LOG_TRANSFER_PATHS.getAsBoolean()) {
+            TransparentAE2.LOGGER.info("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path.format());
+        }
+        if (Config.RENDER_TRANSFER_PATHS.getAsBoolean() && path.available()) {
+            var payload = new TransferPathPayload(kind, itemId, amount, path.positions());
+            TransferPathNetworking.send(payload, anchor);
+        }
+    }
+
+    private static boolean shouldResolvePaths() {
+        return Config.LOG_TRANSFER_PATHS.getAsBoolean() || Config.RENDER_TRANSFER_PATHS.getAsBoolean();
     }
 
     private static IGridNode sourceNode(IActionSource source) {

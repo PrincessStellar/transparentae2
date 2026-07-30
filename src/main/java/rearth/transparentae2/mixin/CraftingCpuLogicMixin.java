@@ -16,6 +16,7 @@ import appeng.api.stacks.KeyCounter;
 import appeng.crafting.execution.CraftingCpuLogic;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import rearth.transparentae2.TransferLogger;
+import rearth.transparentae2.TransparentAE2;
 
 @Mixin(CraftingCpuLogic.class)
 abstract class CraftingCpuLogicMixin {
@@ -42,10 +43,14 @@ abstract class CraftingCpuLogicMixin {
 
         var accepted = provider.pushPattern(pattern, inputs);
         if (accepted) {
-            var cpuNode = cluster.getNode();
-            var providerNode = findProviderNode(provider);
-            for (var stack : transferred) {
-                TransferLogger.logCraftingDispatch(stack.what(), stack.amount(), cpuNode, providerNode);
+            try {
+                var cpuNode = cluster.getNode();
+                var providerNode = findProviderNode(provider);
+                for (var stack : transferred) {
+                    TransferLogger.logCraftingDispatch(stack.what(), stack.amount(), cpuNode, providerNode);
+                }
+            } catch (RuntimeException e) {
+                TransparentAE2.LOGGER.warn("Failed to observe an AE2 crafting dispatch", e);
             }
         }
         return accepted;

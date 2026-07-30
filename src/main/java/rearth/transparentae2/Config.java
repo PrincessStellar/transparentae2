@@ -13,5 +13,9 @@ public class Config {
             .comment("Log the AE2 channel route associated with each logged item transfer.")
             .define("logTransferPaths", true);
 
+    public static final ModConfigSpec.BooleanValue RENDER_TRANSFER_PATHS = BUILDER
+            .comment("Send resolved item-transfer routes to nearby clients for debug rendering.")
+            .define("renderTransferPaths", true);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 }

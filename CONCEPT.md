@@ -40,6 +40,18 @@ currently booting networks produce an explicit `unavailable` reason.
 Crafting logs show the CPU-to-controller leg and the controller-to-provider leg separately because
 each endpoint has its own assigned controller route.
 
+## Debug rendering
+
+When `renderTransferPaths` is enabled, each successfully resolved route is sent to players within
+128 blocks of any route point. The payload contains the transfer kind, item identifier, amount, and
+the ordered dimension-aware block positions for each route leg.
+
+The client keeps at most 32 received paths for five seconds. It outlines every route block and draws
+colored lines between consecutive block centers. Lines are raised by half a block from the normal
+block center, placing them at `Y + 1.0`, so they remain distinguishable from cables and machines.
+Imports are green, exports orange, generic inserts yellow, extracts cyan, and crafting paths magenta.
+Only the part of a cross-dimensional route in the player's current dimension is rendered.
+
 ## Visual implementation
 
 1. Convert observed operations into a small server-side event containing the item key, amount,
@@ -48,8 +60,9 @@ each endpoint has its own assigned controller route.
 3. Convert the route into world-space cable waypoints. Virtual connections such as P2P tunnels and
    quantum bridges become explicit discontinuities rather than straight lines through unloaded
    space.
-4. Send the immutable route and item representation only to players tracking its chunks.
-5. Animate a fake item on the client. The transfer event never participates in storage, crafting,
+4. Send the immutable route and item representation only to nearby players.
+5. Animate a fake item on the client. The debug renderer implemented by the prototype is the first
+   consumer of these route payloads. The transfer event never participates in storage, crafting,
    energy, or security logic.
 
 AE2 does retain a controller-route parent for each grid node/connection as part of channel

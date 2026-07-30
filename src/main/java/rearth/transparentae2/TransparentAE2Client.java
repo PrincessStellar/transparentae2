@@ -1,31 +1,28 @@
 package rearth.transparentae2;
 
-import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.gui.ConfigurationScreen;
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import rearth.transparentae2.client.ClientTransferPathRenderer;
+import rearth.transparentae2.network.TransferPathPayload;
 
-// This class will not load on dedicated servers. Accessing client side code from here is safe.
 @Mod(value = TransparentAE2.MODID, dist = Dist.CLIENT)
-// You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
-@EventBusSubscriber(modid = TransparentAE2.MODID, value = Dist.CLIENT)
-public class TransparentAE2Client {
-    public TransparentAE2Client(ModContainer container) {
-        // Allows NeoForge to create a config screen for this mod's configs.
-        // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
-        // Do not forget to add translations for your config options to the en_us.json file.
-        container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+public final class TransparentAE2Client {
+    public TransparentAE2Client(IEventBus modEventBus) {
+        modEventBus.addListener(this::registerClientPayloads);
+        NeoForge.EVENT_BUS.addListener(ClientTransferPathRenderer::render);
+        NeoForge.EVENT_BUS.addListener(this::onLogout);
     }
 
-    @SubscribeEvent
-    static void onClientSetup(FMLClientSetupEvent event) {
-        // Some client setup code
-        TransparentAE2.LOGGER.info("HELLO FROM CLIENT SETUP");
-        TransparentAE2.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+    private void registerClientPayloads(RegisterClientPayloadHandlersEvent event) {
+        event.register(TransferPathPayload.TYPE,
+                (payload, context) -> ClientTransferPathRenderer.add(payload));
+    }
+
+    private void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        ClientTransferPathRenderer.clear();
     }
 }
