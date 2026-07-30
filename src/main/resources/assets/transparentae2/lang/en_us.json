@@ -1,0 +1,8 @@
+{
+  "item.transparentae2.cable_treatment_applicator": "Cable Treatment Applicator",
+  "item.transparentae2.transparent_smart_cable": "Transparent ME Smart Cable",
+  "item.transparentae2.transparent_smart_dense_cable": "Transparent ME Dense Smart Cable",
+  "item.transparentae2.transparent_covered_dense_cable": "Transparent ME Dense Covered Cable",
+  "message.transparentae2.cable_treatment_applied": "Cable treatment applied",
+  "message.transparentae2.cable_treatment_removed": "Cable treatment removed"
+}

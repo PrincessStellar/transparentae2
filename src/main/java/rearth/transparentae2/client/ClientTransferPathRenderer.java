@@ -29,9 +29,9 @@ import rearth.transparentae2.TransparentAE2;
 import rearth.transparentae2.network.TransferPathPayload;
 
 public final class ClientTransferPathRenderer {
-    private static final int MAX_TRANSFERS = 32;
+    private static final int MAX_TRANSFERS = 128;
     private static final long DEBUG_PATH_LIFETIME_MILLIS = 5_000;
-    private static final double ITEMS_PER_SECOND = 4.0;
+    private static final double ITEMS_PER_SECOND = 8.0;
     private static final double LINE_Y_OFFSET = 0.5;
     private static final ContextKey<List<MovingItemRenderState>> ITEM_RENDER_STATES = new ContextKey<>(
             Identifier.fromNamespaceAndPath(TransparentAE2.MODID, "moving_transfer_items"));

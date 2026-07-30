@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "ae2:fluix_smart_dense_cable",
+    "ae2:quartz_glass"
+  ],
+  "result": {
+    "id": "transparentae2:transparent_smart_dense_cable"
+  }
+}

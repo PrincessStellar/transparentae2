@@ -78,3 +78,28 @@ cannot resolve a route, it reports the reason without affecting the real transfe
 To keep busy networks readable and inexpensive, equivalent events should be coalesced per
 grid/endpoint/item over a short window and capped per client. Route snapshots can be cached until
 AE2 reports a pathing change.
+
+## Transparent cable treatment
+
+The Cable Treatment Applicator is a reusable tool crafted from a brush and AE2 quartz glass.
+Using it on the center cable of a cable-bus toggles a cosmetic treatment. Using it again removes
+the treatment.
+
+Treatment can only be applied to smart, dense covered, and dense smart cables in every color.
+Glass and normal covered cables are already see-through and are not treatable. Treated cables keep
+AE2's original dimensions, connection geometry, and base textures, but omit its additional
+emissive channel-indicator passes. The smart and dense-smart base textures already contain
+transparent pixels beneath those passes, leaving the indicator strip visibly cut out.
+Dense-covered cable has no separate indicator pass, so treated segments use AE2's matching
+dense-smart base texture without its overlay to expose the same cutout.
+
+Transparent ME Smart Cable, Transparent ME Dense Smart Cable, and Transparent ME Dense Covered
+Cable are also available as dedicated Fluix-colored placement items. They carry the treatment
+component by default, so they render with the cutout immediately after placement. AE2's color
+applicator can recolor them after placement while retaining the treatment state.
+
+Treatment is stored on the cable part and synchronized as part of its normal update data. It is
+also copied to the dropped cable item's data component when dismantled, so it survives breaking,
+placing, and recoloring. The change is visual only: connections, channels, rendering bounds,
+collision, selection, and all ME network behavior continue to use AE2's original cable geometry
+and logic.

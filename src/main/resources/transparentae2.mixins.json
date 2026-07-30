@@ -3,8 +3,16 @@
   "package": "rearth.transparentae2.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "AEBasePartMixin",
     "CraftingCpuLogicMixin",
     "NetworkStorageMixin"
+  ],
+  "client": [
+    "client.CableBuilderMixin",
+    "client.CableBusContainerMixin",
+    "client.CableBusModelMixin",
+    "client.CableBusRenderStateMixin",
+    "client.CubeBuilderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

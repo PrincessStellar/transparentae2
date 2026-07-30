@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:brush",
+    "ae2:quartz_glass"
+  ],
+  "result": {
+    "id": "transparentae2:cable_treatment_applicator"
+  }
+}
