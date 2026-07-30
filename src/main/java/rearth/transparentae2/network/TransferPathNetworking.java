@@ -17,7 +17,7 @@ public final class TransferPathNetworking {
     }
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("1").playToClient(TransferPathPayload.TYPE, TransferPathPayload.STREAM_CODEC);
+        event.registrar("2").playToClient(TransferPathPayload.TYPE, TransferPathPayload.STREAM_CODEC);
     }
 
     public static void send(TransferPathPayload payload, IGridNode anchor) {

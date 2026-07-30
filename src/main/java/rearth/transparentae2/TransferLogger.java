@@ -52,14 +52,12 @@ public final class TransferLogger {
             if (amount > 0 && what instanceof AEItemKey item) {
                 log("CRAFTING", item, amount, "crafting CPU",
                         "crafting provider " + describeNode(provider));
-                if (shouldResolvePaths()) {
-                    handleResolvedPath(
-                            PathKind.CRAFTING,
-                            item,
-                            amount,
-                            TransferPathResolver.resolveCrafting(cpu, provider),
-                            cpu != null ? cpu : provider);
-                }
+                handleResolvedPath(
+                        PathKind.CRAFTING,
+                        item,
+                        amount,
+                        TransferPathResolver.resolveCrafting(cpu, provider),
+                        cpu != null ? cpu : provider);
             }
         } catch (RuntimeException e) {
             TransparentAE2.LOGGER.warn("Failed to observe AE2 crafting dispatch", e);
@@ -84,9 +82,7 @@ public final class TransferLogger {
             long amount,
             IGridNode endpoint,
             boolean controllerFirst) {
-        if (shouldResolvePaths()) {
-            handleResolvedPath(kind, item, amount, TransferPathResolver.resolve(endpoint, controllerFirst), endpoint);
-        }
+        handleResolvedPath(kind, item, amount, TransferPathResolver.resolve(endpoint, controllerFirst), endpoint);
     }
 
     private static void handleResolvedPath(
@@ -99,14 +95,10 @@ public final class TransferLogger {
         if (Config.LOG_TRANSFER_PATHS.getAsBoolean()) {
             TransparentAE2.LOGGER.info("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path.format());
         }
-        if (Config.RENDER_TRANSFER_PATHS.getAsBoolean() && path.available()) {
-            var payload = new TransferPathPayload(kind, itemId, amount, path.positions());
+        if (path.available()) {
+            var payload = new TransferPathPayload(kind, item.getReadOnlyStack(), amount, path.positions());
             TransferPathNetworking.send(payload, anchor);
         }
-    }
-
-    private static boolean shouldResolvePaths() {
-        return Config.LOG_TRANSFER_PATHS.getAsBoolean() || Config.RENDER_TRANSFER_PATHS.getAsBoolean();
     }
 
     private static IGridNode sourceNode(IActionSource source) {

@@ -42,15 +42,21 @@ each endpoint has its own assigned controller route.
 
 ## Debug rendering
 
-When `renderTransferPaths` is enabled, each successfully resolved route is sent to players within
-128 blocks of any route point. The payload contains the transfer kind, item identifier, amount, and
-the ordered dimension-aware block positions for each route leg.
+Each successfully resolved route is sent to players within 128 blocks of any route point. The
+payload contains the transfer kind, complete component-bearing display stack, amount, and the
+ordered dimension-aware block positions for each route leg.
 
-The client keeps at most 32 received paths for five seconds. It outlines every route block and draws
-colored lines between consecutive block centers. Lines are raised by half a block from the normal
-block center, placing them at `Y + 1.0`, so they remain distinguishable from cables and machines.
-Imports are green, exports orange, generic inserts yellow, extracts cyan, and crafting paths magenta.
-Only the part of a cross-dimensional route in the player's current dimension is rendered.
+The client keeps at most 32 received transfers. It renders the stack moving along the route at four
+blocks per second. The item follows a line raised by half a block from the normal block center,
+placing it at `Y + 1.0`, so it remains distinguishable from cables and machines. Crafting routes and
+routes split by virtual connections are traversed segment by segment; the item teleports across the
+unrenderable gap rather than drawing a false connection through the world.
+
+The optional line debugger can be enabled with `debugRenderTransferPaths` in
+`transparentae2-client.toml` and is disabled by default. It draws only colored route lines for five
+seconds; the former block-outline cubes have been removed. Imports are green, exports orange,
+generic inserts yellow, extracts cyan, and crafting paths magenta. Only the part of a
+cross-dimensional route in the player's current dimension is rendered.
 
 ## Visual implementation
 
@@ -60,10 +66,9 @@ Only the part of a cross-dimensional route in the player's current dimension is 
 3. Convert the route into world-space cable waypoints. Virtual connections such as P2P tunnels and
    quantum bridges become explicit discontinuities rather than straight lines through unloaded
    space.
-4. Send the immutable route and item representation only to nearby players.
-5. Animate a fake item on the client. The debug renderer implemented by the prototype is the first
-   consumer of these route payloads. The transfer event never participates in storage, crafting,
-   energy, or security logic.
+4. Send the immutable route and complete display stack only to nearby players.
+5. Animate a fake item on the client, with the optional line debugger consuming the same route.
+   The transfer event never participates in storage, crafting, energy, or security logic.
 
 AE2 does retain a controller-route parent for each grid node/connection as part of channel
 calculation. That route is internal implementation state rather than public API, so the prototype

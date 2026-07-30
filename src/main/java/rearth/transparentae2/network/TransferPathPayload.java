@@ -8,11 +8,12 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 import rearth.transparentae2.TransparentAE2;
 
 public record TransferPathPayload(
         PathKind kind,
-        Identifier itemId,
+        ItemStack stack,
         long amount,
         List<List<GlobalPos>> legs) implements CustomPacketPayload {
     private static final int MAX_LEGS = 64;
@@ -26,6 +27,7 @@ public record TransferPathPayload(
             TransferPathPayload::decode);
 
     public TransferPathPayload {
+        stack = stack.copy();
         legs = legs.stream().map(List::copyOf).toList();
         if (legs.size() > MAX_LEGS || legs.stream().anyMatch(leg -> leg.size() > MAX_POINTS_PER_LEG)) {
             throw new IllegalArgumentException("Transfer path exceeds payload limits");
@@ -39,7 +41,7 @@ public record TransferPathPayload(
 
     private void encode(RegistryFriendlyByteBuf buffer) {
         buffer.writeVarInt(kind.ordinal());
-        Identifier.STREAM_CODEC.encode(buffer, itemId);
+        ItemStack.STREAM_CODEC.encode(buffer, stack);
         buffer.writeVarLong(amount);
         buffer.writeVarInt(legs.size());
         for (var leg : legs) {
@@ -56,7 +58,7 @@ public record TransferPathPayload(
             throw new IllegalArgumentException("Unknown transfer path kind " + kindIndex);
         }
 
-        var itemId = Identifier.STREAM_CODEC.decode(buffer);
+        var stack = ItemStack.STREAM_CODEC.decode(buffer);
         var amount = buffer.readVarLong();
         var legCount = readBoundedSize(buffer, MAX_LEGS, "legs");
         var legs = new ArrayList<List<GlobalPos>>(legCount);
@@ -68,7 +70,7 @@ public record TransferPathPayload(
             }
             legs.add(points);
         }
-        return new TransferPathPayload(PathKind.values()[kindIndex], itemId, amount, legs);
+        return new TransferPathPayload(PathKind.values()[kindIndex], stack, amount, legs);
     }
 
     private static int readBoundedSize(RegistryFriendlyByteBuf buffer, int maximum, String name) {
