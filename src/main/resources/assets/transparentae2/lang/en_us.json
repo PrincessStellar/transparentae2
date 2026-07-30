@@ -1,0 +1,13 @@
+{
+  "itemGroup.transparentae2": "Example Mod Tab",
+  "block.transparentae2.example_block": "Example Block",
+  "item.transparentae2.example_item": "Example Item",
+
+  "transparentae2.configuration.title": "Transparent AE2 Configs",
+  "transparentae2.configuration.section.transparentae2.common.toml": "Transparent AE2 Configs",
+  "transparentae2.configuration.section.transparentae2.common.toml.title": "Transparent AE2 Configs",
+  "transparentae2.configuration.items": "Item List",
+  "transparentae2.configuration.logDirtBlock": "Log Dirt Block",
+  "transparentae2.configuration.magicNumberIntroduction": "Magic Number Text",
+  "transparentae2.configuration.magicNumber": "Magic Number"
+}
