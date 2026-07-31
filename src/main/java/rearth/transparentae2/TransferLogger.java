@@ -1,10 +1,5 @@
 package rearth.transparentae2;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.entity.BlockEntity;
-
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
@@ -13,6 +8,10 @@ import appeng.api.stacks.AEKey;
 import appeng.parts.AEBasePart;
 import appeng.parts.automation.ExportBusPart;
 import appeng.parts.automation.ImportBusPart;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import rearth.transparentae2.network.TransferPathNetworking;
 import rearth.transparentae2.network.TransferPathPayload;
 import rearth.transparentae2.network.TransferPathPayload.PathKind;
@@ -52,12 +51,14 @@ public final class TransferLogger {
             if (amount > 0 && what instanceof AEItemKey item) {
                 log("CRAFTING", item, amount, "crafting CPU",
                         "crafting provider " + describeNode(provider));
-                handleResolvedPath(
-                        PathKind.CRAFTING,
-                        item,
-                        amount,
-                        TransferPathResolver.resolveCrafting(cpu, provider),
-                        cpu != null ? cpu : provider);
+                if (Config.ENABLE_TRANSFER_PATHS.getAsBoolean()) {
+                    handleResolvedPath(
+                            PathKind.CRAFTING,
+                            item,
+                            amount,
+                            TransferPathResolver.resolveCrafting(cpu, provider),
+                            cpu != null ? cpu : provider);
+                }
             }
         } catch (RuntimeException e) {
             TransparentAE2.LOGGER.warn("Failed to observe AE2 crafting dispatch", e);
@@ -65,14 +66,11 @@ public final class TransferLogger {
     }
 
     private static void log(String kind, AEItemKey item, long amount, String from, String to) {
-        if (!Config.LOG_ITEM_TRANSFERS.getAsBoolean()) {
-            return;
-        }
 
         var stack = item.getReadOnlyStack();
         var itemId = BuiltInRegistries.ITEM.getKey(item.getItem());
         var components = stack.getComponentsPatch().isEmpty() ? "" : " components=" + stack.getComponentsPatch();
-        TransparentAE2.LOGGER.info("[AE2 TRANSFER/{}] {}x {}{} | {} -> {}",
+        TransparentAE2.LOGGER.debug("[AE2 TRANSFER/{}] {}x {}{} | {} -> {}",
                 kind, amount, itemId, components, from, to);
     }
 
@@ -82,6 +80,9 @@ public final class TransferLogger {
             long amount,
             IGridNode endpoint,
             boolean controllerFirst) {
+        if (!Config.ENABLE_TRANSFER_PATHS.getAsBoolean()) {
+            return;
+        }
         handleResolvedPath(kind, item, amount, TransferPathResolver.resolve(endpoint, controllerFirst), endpoint);
     }
 
@@ -92,9 +93,7 @@ public final class TransferLogger {
             TransferPathResolver.ResolvedPath path,
             IGridNode anchor) {
         var itemId = BuiltInRegistries.ITEM.getKey(item.getItem());
-        if (Config.LOG_TRANSFER_PATHS.getAsBoolean()) {
-            TransparentAE2.LOGGER.info("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path.format());
-        }
+        TransparentAE2.LOGGER.debug("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path.format());
         if (path.available()) {
             var payload = new TransferPathPayload(
                     kind,
@@ -130,7 +129,7 @@ public final class TransferLogger {
 
             if (side != null
                     && ((inserting && part instanceof ImportBusPart)
-                            || (!inserting && part instanceof ExportBusPart))) {
+                    || (!inserting && part instanceof ExportBusPart))) {
                 position = position.relative(side);
                 return part.getClass().getSimpleName() + " external " + describe(part.getBlockEntity(), position);
             }

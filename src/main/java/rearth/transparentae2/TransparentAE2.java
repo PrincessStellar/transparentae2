@@ -22,7 +22,7 @@ public class TransparentAE2 {
         ModItems.ITEMS.register(modEventBus);
         modEventBus.addListener(ModItems::addCreativeTabContents);
         modEventBus.addListener(TransferPathNetworking::register);
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        modContainer.registerConfig(ModConfig.Type.SERVER, Config.SPEC);
         LOGGER.info("Transparent AE2 enabled");
     }
 }

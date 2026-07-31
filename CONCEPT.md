@@ -50,17 +50,25 @@ The client keeps at most 128 received transfers. It renders the stack moving alo
 eight blocks per second. Items travel through the exact block center without an elevation or
 lateral offset. Their rendered scale is derived from the smallest cable class along the resolved
 route: normal non-smart cables use `0.8x`, smart cables use `1.2x`, and dense cables use `2.0x`.
-The renderer counteracts the ground item-model transform's upward translation after scaling, so
-the visual item remains centered vertically at every size. Mixed routes use the smallest class
-encountered. Crafting routes and routes split by virtual connections are traversed segment by
-segment; the item teleports across the unrenderable gap rather than drawing a false connection
-through the world.
+Non-block items receive an additional `0.8x` factor to better match the apparent size of block
+items. The renderer counteracts the ground item-model transform's upward translation after
+scaling, so the visual item remains centered vertically at every size. Mixed routes use the
+smallest class encountered. Crafting routes and routes split by virtual connections are traversed
+segment by segment; the item teleports across the unrenderable gap rather than drawing a false
+connection through the world.
 
 The optional line debugger can be enabled with `debugRenderTransferPaths` in
 `transparentae2-client.toml` and is disabled by default. It draws only colored route lines for five
 seconds; the former block-outline cubes have been removed. Imports are green, exports orange,
 generic inserts yellow, extracts cyan, and crafting paths magenta. Only the part of a
 cross-dimensional route in the player's current dimension is rendered.
+
+The client config can disable transfer rendering entirely with `renderTransferItems`, set item
+movement speed with `itemMovementSpeed`, and limit retained animations with `maxTransfers`.
+Disabling rendering clears the local animation queue and also suppresses debug lines. The server
+config can disable path calculation and transmission entirely with `enableTransferPaths`; when
+disabled, transfer logging remains available but the route resolver and visual payload sender are
+not invoked.
 
 ## Visual implementation
 

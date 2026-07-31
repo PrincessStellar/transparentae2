@@ -19,6 +19,7 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.util.context.ContextKey;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
@@ -29,11 +30,10 @@ import rearth.transparentae2.TransparentAE2;
 import rearth.transparentae2.network.TransferPathPayload;
 
 public final class ClientTransferPathRenderer {
-    private static final int MAX_TRANSFERS = 128;
     private static final long DEBUG_PATH_LIFETIME_MILLIS = 5_000;
-    private static final double ITEMS_PER_SECOND = 8.0;
     private static final double LINE_Y_OFFSET = 0.5;
     private static final float ITEM_SCALE_PER_CABLE_UNIT = 0.2F;
+    private static final float NON_BLOCK_ITEM_SCALE = 0.8F;
     private static final float GROUND_MODEL_Y_OFFSET = 3.0F / 16.0F;
     private static final ContextKey<List<MovingItemRenderState>> ITEM_RENDER_STATES = new ContextKey<>(
             Identifier.fromNamespaceAndPath(TransparentAE2.MODID, "moving_transfer_items"));
@@ -43,7 +43,13 @@ public final class ClientTransferPathRenderer {
     }
 
     public static void add(TransferPathPayload payload) {
-        while (TRANSFERS.size() >= MAX_TRANSFERS) {
+        if (!ClientConfig.RENDER_TRANSFER_ITEMS.getAsBoolean()) {
+            TRANSFERS.clear();
+            return;
+        }
+
+        var maxTransfers = ClientConfig.MAX_TRANSFERS.getAsInt();
+        while (TRANSFERS.size() >= maxTransfers) {
             TRANSFERS.removeFirst();
         }
         TRANSFERS.addLast(MovingTransfer.create(payload, Util.getMillis()));
@@ -54,6 +60,12 @@ public final class ClientTransferPathRenderer {
     }
 
     public static void extract(ExtractLevelRenderStateEvent event) {
+        if (!ClientConfig.RENDER_TRANSFER_ITEMS.getAsBoolean()) {
+            TRANSFERS.clear();
+            return;
+        }
+
+        trimToConfiguredLimit();
         if (TRANSFERS.isEmpty()) {
             return;
         }
@@ -93,6 +105,10 @@ public final class ClientTransferPathRenderer {
     }
 
     public static void submitItems(SubmitCustomGeometryEvent event) {
+        if (!ClientConfig.RENDER_TRANSFER_ITEMS.getAsBoolean()) {
+            return;
+        }
+
         List<MovingItemRenderState> renderStates = event.getLevelRenderState().getRenderData(ITEM_RENDER_STATES);
         if (renderStates == null) {
             return;
@@ -118,7 +134,9 @@ public final class ClientTransferPathRenderer {
     }
 
     public static void render(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        if (!ClientConfig.DEBUG_RENDER_TRANSFER_PATHS.getAsBoolean() || TRANSFERS.isEmpty()) {
+        if (!ClientConfig.RENDER_TRANSFER_ITEMS.getAsBoolean()
+                || !ClientConfig.DEBUG_RENDER_TRANSFER_PATHS.getAsBoolean()
+                || TRANSFERS.isEmpty()) {
             return;
         }
 
@@ -203,6 +221,13 @@ public final class ClientTransferPathRenderer {
         };
     }
 
+    private static void trimToConfiguredLimit() {
+        var maxTransfers = ClientConfig.MAX_TRANSFERS.getAsInt();
+        while (TRANSFERS.size() > maxTransfers) {
+            TRANSFERS.removeFirst();
+        }
+    }
+
     private record MovingItemRenderState(
             Vec3 position,
             ItemStackRenderState item,
@@ -222,6 +247,7 @@ public final class ClientTransferPathRenderer {
         private final long debugEndsAtMillis;
         private final long retentionEndsAtMillis;
         private final double routeLength;
+        private final double itemsPerSecond;
         private final float itemScale;
         private final int seed;
 
@@ -230,26 +256,31 @@ public final class ClientTransferPathRenderer {
                 long startedAtMillis,
                 long travelEndsAtMillis,
                 long debugEndsAtMillis,
-                double routeLength) {
+                double routeLength,
+                double itemsPerSecond) {
             this.payload = payload;
             this.startedAtMillis = startedAtMillis;
             this.travelEndsAtMillis = travelEndsAtMillis;
             this.debugEndsAtMillis = debugEndsAtMillis;
             this.retentionEndsAtMillis = Math.max(travelEndsAtMillis, debugEndsAtMillis);
             this.routeLength = routeLength;
-            this.itemScale = payload.minimumCableWidth() * ITEM_SCALE_PER_CABLE_UNIT;
+            this.itemsPerSecond = itemsPerSecond;
+            var itemTypeScale = payload.stack().getItem() instanceof BlockItem ? 1.0F : NON_BLOCK_ITEM_SCALE;
+            this.itemScale = payload.minimumCableWidth() * ITEM_SCALE_PER_CABLE_UNIT * itemTypeScale;
             this.seed = payload.stack().hashCode();
         }
 
         static MovingTransfer create(TransferPathPayload payload, long now) {
             var routeLength = routeLength(payload.legs());
-            var travelMillis = Math.max(250L, Math.round(routeLength / ITEMS_PER_SECOND * 1_000.0));
+            var itemsPerSecond = ClientConfig.ITEM_MOVEMENT_SPEED.getAsDouble();
+            var travelMillis = Math.max(250L, Math.round(routeLength / itemsPerSecond * 1_000.0));
             return new MovingTransfer(
                     payload,
                     now,
                     now + travelMillis,
                     now + DEBUG_PATH_LIFETIME_MILLIS,
-                    routeLength);
+                    routeLength,
+                    itemsPerSecond);
         }
 
         PositionedItem positionAt(long now) {
@@ -262,7 +293,7 @@ public final class ClientTransferPathRenderer {
             }
 
             var elapsed = Math.max(0L, now - startedAtMillis);
-            var distance = Math.min(routeLength, elapsed / 1_000.0 * ITEMS_PER_SECOND);
+            var distance = Math.min(routeLength, elapsed / 1_000.0 * itemsPerSecond);
             for (var leg : payload.legs()) {
                 for (int pointIndex = 1; pointIndex < leg.size(); pointIndex++) {
                     var from = leg.get(pointIndex - 1);
