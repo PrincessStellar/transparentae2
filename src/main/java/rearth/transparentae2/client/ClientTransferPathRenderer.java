@@ -3,16 +3,16 @@ package rearth.transparentae2.client;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
@@ -23,15 +23,13 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
-import org.joml.Vector3f;
+import appeng.api.stacks.AEItemKey;
 import rearth.transparentae2.TransparentAE2;
 import rearth.transparentae2.network.TransferPathPayload;
 
 public final class ClientTransferPathRenderer {
-    private static final long DEBUG_PATH_LIFETIME_MILLIS = 5_000;
-    private static final double LINE_Y_OFFSET = 0.5;
+    private static final double MAX_RENDER_DISTANCE_SQUARED = 128.0 * 128.0;
     private static final float ITEM_SCALE_PER_CABLE_UNIT = 0.2F;
     private static final float NON_BLOCK_ITEM_SCALE = 0.8F;
     private static final float GROUND_MODEL_Y_OFFSET = 3.0F / 16.0F;
@@ -74,22 +72,29 @@ public final class ClientTransferPathRenderer {
         TRANSFERS.removeIf(transfer -> transfer.retentionEndsAtMillis <= now);
         var renderStates = new ArrayList<MovingItemRenderState>();
         var modelResolver = Minecraft.getInstance().getItemModelResolver();
+        var camera = event.getRenderState().cameraRenderState.pos;
+        var itemStates = new HashMap<AEItemKey, ItemStackRenderState>();
 
         for (var transfer : TRANSFERS) {
             var position = transfer.positionAt(now);
-            if (position == null || !position.dimension.equals(event.getLevel().dimension())) {
+            if (position == null
+                    || !position.dimension.equals(event.getLevel().dimension())
+                    || position.position.distanceToSqr(camera) > MAX_RENDER_DISTANCE_SQUARED) {
                 continue;
             }
 
-            var itemState = new ItemStackRenderState();
-            modelResolver.updateForTopItem(
-                    itemState,
-                    transfer.payload.stack(),
-                    ItemDisplayContext.GROUND,
-                    event.getLevel(),
-                    null,
-                    transfer.seed);
-            var light = LevelRenderer.getLightCoords(event.getLevel(), BlockPos.containing(position.position));
+            var itemState = itemStates.computeIfAbsent(transfer.item, ignored -> {
+                var state = new ItemStackRenderState();
+                modelResolver.updateForTopItem(
+                        state,
+                        transfer.item.getReadOnlyStack(),
+                        ItemDisplayContext.GROUND,
+                        event.getLevel(),
+                        null,
+                        transfer.seed);
+                return state;
+            });
+            var light = transfer.lightAt(event, BlockPos.containing(position.position));
             var rotation = (now - transfer.startedAtMillis) * 0.002F;
             renderStates.add(new MovingItemRenderState(
                     position.position,
@@ -133,94 +138,6 @@ public final class ClientTransferPathRenderer {
         }
     }
 
-    public static void render(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        if (!ClientConfig.RENDER_TRANSFER_ITEMS.getAsBoolean()
-                || !ClientConfig.DEBUG_RENDER_TRANSFER_PATHS.getAsBoolean()
-                || TRANSFERS.isEmpty()) {
-            return;
-        }
-
-        var minecraft = Minecraft.getInstance();
-        var level = minecraft.level;
-        if (level == null) {
-            return;
-        }
-
-        var now = Util.getMillis();
-        var poseStack = event.getPoseStack();
-        var camera = event.getLevelRenderState().cameraRenderState.pos;
-        var consumer = minecraft.renderBuffers().bufferSource().getBuffer(RenderTypes.linesTranslucent());
-
-        for (var transfer : TRANSFERS) {
-            if (transfer.debugEndsAtMillis > now) {
-                var color = color(transfer.payload.kind());
-                for (var leg : transfer.payload.legs()) {
-                    renderLeg(poseStack, consumer, camera, level.dimension(), leg, color);
-                }
-            }
-        }
-    }
-
-    private static void renderLeg(
-            PoseStack poseStack,
-            VertexConsumer consumer,
-            Vec3 camera,
-            net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
-            List<GlobalPos> points,
-            int color) {
-        GlobalPos previous = null;
-        for (var point : points) {
-            if (!point.dimension().equals(dimension)) {
-                previous = null;
-                continue;
-            }
-
-            if (previous != null && previous.dimension().equals(point.dimension())) {
-                var from = elevatedCenter(previous).subtract(camera);
-                var to = elevatedCenter(point).subtract(camera);
-                renderLine(poseStack, consumer, from, to, color);
-            }
-            previous = point;
-        }
-    }
-
-    private static Vec3 elevatedCenter(GlobalPos point) {
-        return Vec3.atCenterOf(point.pos()).add(0, LINE_Y_OFFSET, 0);
-    }
-
-    private static void renderLine(
-            PoseStack poseStack,
-            VertexConsumer consumer,
-            Vec3 from,
-            Vec3 to,
-            int color) {
-        var direction = to.subtract(from);
-        if (direction.lengthSqr() < 1.0E-6) {
-            return;
-        }
-
-        var normal = new Vector3f((float) direction.x, (float) direction.y, (float) direction.z).normalize();
-        var pose = poseStack.last();
-        consumer.addVertex(pose, (float) from.x, (float) from.y, (float) from.z)
-                .setColor(color)
-                .setNormal(pose, normal)
-                .setLineWidth(4.0F);
-        consumer.addVertex(pose, (float) to.x, (float) to.y, (float) to.z)
-                .setColor(color)
-                .setNormal(pose, normal)
-                .setLineWidth(4.0F);
-    }
-
-    private static int color(TransferPathPayload.PathKind kind) {
-        return switch (kind) {
-            case IMPORT -> 0xFF55FF55;
-            case INSERT -> 0xFFFFFF55;
-            case EXPORT -> 0xFFFFAA33;
-            case EXTRACT -> 0xFF55FFFF;
-            case CRAFTING -> 0xFFFF55FF;
-        };
-    }
-
     private static void trimToConfiguredLimit() {
         var maxTransfers = ClientConfig.MAX_TRANSFERS.getAsInt();
         while (TRANSFERS.size() > maxTransfers) {
@@ -241,46 +158,53 @@ public final class ClientTransferPathRenderer {
     }
 
     private static final class MovingTransfer {
-        private final TransferPathPayload payload;
         private final long startedAtMillis;
         private final long travelEndsAtMillis;
-        private final long debugEndsAtMillis;
         private final long retentionEndsAtMillis;
         private final double routeLength;
         private final double itemsPerSecond;
         private final float itemScale;
         private final int seed;
+        private final AEItemKey item;
+        private final Segment[] segments;
+        private final PositionedItem stationaryPosition;
+        private BlockPos lightPosition;
+        private int light;
 
         private MovingTransfer(
                 TransferPathPayload payload,
                 long startedAtMillis,
                 long travelEndsAtMillis,
-                long debugEndsAtMillis,
                 double routeLength,
-                double itemsPerSecond) {
-            this.payload = payload;
+                double itemsPerSecond,
+                Segment[] segments,
+                PositionedItem stationaryPosition) {
             this.startedAtMillis = startedAtMillis;
             this.travelEndsAtMillis = travelEndsAtMillis;
-            this.debugEndsAtMillis = debugEndsAtMillis;
-            this.retentionEndsAtMillis = Math.max(travelEndsAtMillis, debugEndsAtMillis);
+            this.retentionEndsAtMillis = travelEndsAtMillis;
             this.routeLength = routeLength;
             this.itemsPerSecond = itemsPerSecond;
+            this.segments = segments;
+            this.stationaryPosition = stationaryPosition;
             var itemTypeScale = payload.stack().getItem() instanceof BlockItem ? 1.0F : NON_BLOCK_ITEM_SCALE;
             this.itemScale = payload.minimumCableWidth() * ITEM_SCALE_PER_CABLE_UNIT * itemTypeScale;
             this.seed = payload.stack().hashCode();
+            this.item = Objects.requireNonNull(AEItemKey.of(payload.stack()));
         }
 
         static MovingTransfer create(TransferPathPayload payload, long now) {
-            var routeLength = routeLength(payload.legs());
+            var segments = createSegments(payload.legs());
+            var routeLength = segments.length == 0 ? 0 : segments[segments.length - 1].endsAtDistance;
             var itemsPerSecond = ClientConfig.ITEM_MOVEMENT_SPEED.getAsDouble();
             var travelMillis = Math.max(250L, Math.round(routeLength / itemsPerSecond * 1_000.0));
             return new MovingTransfer(
                     payload,
                     now,
                     now + travelMillis,
-                    now + DEBUG_PATH_LIFETIME_MILLIS,
                     routeLength,
-                    itemsPerSecond);
+                    itemsPerSecond,
+                    segments,
+                    firstPosition(payload.legs()));
         }
 
         PositionedItem positionAt(long now) {
@@ -289,44 +213,63 @@ public final class ClientTransferPathRenderer {
             }
 
             if (routeLength <= 1.0E-6) {
-                return firstPosition(payload.legs());
+                return stationaryPosition;
             }
 
             var elapsed = Math.max(0L, now - startedAtMillis);
             var distance = Math.min(routeLength, elapsed / 1_000.0 * itemsPerSecond);
-            for (var leg : payload.legs()) {
-                for (int pointIndex = 1; pointIndex < leg.size(); pointIndex++) {
-                    var from = leg.get(pointIndex - 1);
-                    var to = leg.get(pointIndex);
-                    if (!from.dimension().equals(to.dimension())) {
-                        continue;
-                    }
-
-                    var fromPosition = itemCenter(from);
-                    var toPosition = itemCenter(to);
-                    var edgeLength = fromPosition.distanceTo(toPosition);
-                    if (distance <= edgeLength) {
-                        var progress = edgeLength <= 1.0E-6 ? 1.0 : distance / edgeLength;
-                        return new PositionedItem(from.dimension(), fromPosition.lerp(toPosition, progress));
-                    }
-                    distance -= edgeLength;
-                }
-            }
-            return lastPosition(payload.legs());
+            var segment = findSegment(distance);
+            var segmentStart = segment.endsAtDistance - segment.length;
+            var progress = segment.length <= 1.0E-6 ? 1.0 : (distance - segmentStart) / segment.length;
+            return new PositionedItem(segment.dimension, segment.from.lerp(segment.to, progress));
         }
 
-        private static double routeLength(List<List<GlobalPos>> legs) {
-            double result = 0;
+        private Segment findSegment(double distance) {
+            var low = 0;
+            var high = segments.length - 1;
+            while (low < high) {
+                var middle = (low + high) >>> 1;
+                if (distance <= segments[middle].endsAtDistance) {
+                    high = middle;
+                } else {
+                    low = middle + 1;
+                }
+            }
+            return segments[low];
+        }
+
+        int lightAt(ExtractLevelRenderStateEvent event, BlockPos position) {
+            if (!position.equals(lightPosition)) {
+                lightPosition = position;
+                light = LevelRenderer.getLightCoords(event.getLevel(), position);
+            }
+            return light;
+        }
+
+        private static Segment[] createSegments(List<List<GlobalPos>> legs) {
+            var result = new ArrayList<Segment>();
+            double distance = 0;
             for (var leg : legs) {
                 for (int pointIndex = 1; pointIndex < leg.size(); pointIndex++) {
                     var from = leg.get(pointIndex - 1);
                     var to = leg.get(pointIndex);
                     if (from.dimension().equals(to.dimension())) {
-                        result += itemCenter(from).distanceTo(itemCenter(to));
+                        var fromPosition = itemCenter(from);
+                        var toPosition = itemCenter(to);
+                        var length = fromPosition.distanceTo(toPosition);
+                        if (length > 1.0E-6) {
+                            distance += length;
+                            result.add(new Segment(
+                                    from.dimension(),
+                                    fromPosition,
+                                    toPosition,
+                                    length,
+                                    distance));
+                        }
                     }
                 }
             }
-            return result;
+            return result.toArray(Segment[]::new);
         }
 
         private static PositionedItem firstPosition(List<List<GlobalPos>> legs) {
@@ -339,19 +282,16 @@ public final class ClientTransferPathRenderer {
             return null;
         }
 
-        private static PositionedItem lastPosition(List<List<GlobalPos>> legs) {
-            for (int legIndex = legs.size() - 1; legIndex >= 0; legIndex--) {
-                var leg = legs.get(legIndex);
-                if (!leg.isEmpty()) {
-                    var point = leg.getLast();
-                    return new PositionedItem(point.dimension(), itemCenter(point));
-                }
-            }
-            return null;
-        }
-
         private static Vec3 itemCenter(GlobalPos point) {
             return Vec3.atCenterOf(point.pos());
         }
+    }
+
+    private record Segment(
+            net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
+            Vec3 from,
+            Vec3 to,
+            double length,
+            double endsAtDistance) {
     }
 }

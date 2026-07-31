@@ -8,6 +8,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.neoforge.common.NeoForge;
 import rearth.transparentae2.init.ModDataComponents;
 import rearth.transparentae2.init.ModItems;
 import rearth.transparentae2.network.TransferPathNetworking;
@@ -22,6 +23,7 @@ public class TransparentAE2 {
         ModItems.ITEMS.register(modEventBus);
         modEventBus.addListener(ModItems::addCreativeTabContents);
         modEventBus.addListener(TransferPathNetworking::register);
+        NeoForge.EVENT_BUS.addListener(TransferBatcher::flush);
         modContainer.registerConfig(ModConfig.Type.SERVER, Config.SPEC);
         LOGGER.info("Transparent AE2 enabled");
     }

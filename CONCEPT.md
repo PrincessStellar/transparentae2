@@ -13,9 +13,9 @@ The prototype logs successful item transfers at two points:
 - The crafting CPU's `ICraftingProvider.pushPattern` call covers crafting inputs sent internally
   from a crafting CPU to any crafting provider.
 
-Simulation calls, rejected transfers, fluids, and amounts that did not move are ignored. Logging can
-be disabled with `logItemTransfers` in `transparentae2-common.toml`. Channel path logging can be
-controlled separately with `logTransferPaths`.
+Simulation calls, rejected transfers, fluids, and amounts that did not move are ignored. Detailed
+transfer and route messages use debug logging and avoid constructing descriptions while debug
+logging is disabled.
 
 Example:
 
@@ -25,8 +25,8 @@ Example:
 [AE2 TRANSFER/CRAFTING] 1x minecraft:iron_ingot | crafting CPU -> pattern provider @ minecraft:overworld 12, 64, 9
 ```
 
-Each transfer is followed by an `AE2 PATH` line. It walks the controller parent route assigned by
-AE2's channel calculation in the same direction the visual item would travel:
+Each visual transfer can produce an `AE2 PATH` debug line. It walks the controller parent route
+assigned by AE2's channel calculation in the same direction the visual item would travel:
 
 ```text
 [AE2 PATH/EXPORT] 8x minecraft:iron_ingot | ControllerBlockEntity @ minecraft:overworld 0, 64, 0 --[used=3, cable]--> CablePart @ minecraft:overworld 1, 64, 0 --[used=1, cable]--> ExportBusPart @ minecraft:overworld 2, 64, 0
@@ -40,14 +40,18 @@ currently booting networks produce an explicit `unavailable` reason.
 Crafting logs show the CPU-to-controller leg and the controller-to-provider leg separately because
 each endpoint has its own assigned controller route.
 
-## Debug rendering
+## Transfer visualization
 
 Each successfully resolved route is sent to players within 128 blocks of any route point. The
 payload contains the transfer kind, complete component-bearing display stack, amount, and the
 ordered dimension-aware block positions for each route leg.
 
+Equivalent transfers with the same kind, item components, and endpoints are combined during each
+server tick. Each distinct route is resolved once during that tick's flush before immutable visual
+payloads are sent to nearby players.
+
 The client keeps at most 128 received transfers. It renders the stack moving along the route at
-eight blocks per second. Items travel through the exact block center without an elevation or
+six blocks per second by default. Items travel through the exact block center without an elevation or
 lateral offset. Their rendered scale is derived from the smallest cable class along the resolved
 route: normal non-smart cables use `0.8x`, smart cables use `1.2x`, and dense cables use `2.0x`.
 Non-block items receive an additional `0.8x` factor to better match the apparent size of block
@@ -57,16 +61,10 @@ smallest class encountered. Crafting routes and routes split by virtual connecti
 segment by segment; the item teleports across the unrenderable gap rather than drawing a false
 connection through the world.
 
-The optional line debugger can be enabled with `debugRenderTransferPaths` in
-`transparentae2-client.toml` and is disabled by default. It draws only colored route lines for five
-seconds; the former block-outline cubes have been removed. Imports are green, exports orange,
-generic inserts yellow, extracts cyan, and crafting paths magenta. Only the part of a
-cross-dimensional route in the player's current dimension is rendered.
-
 The client config can disable transfer rendering entirely with `renderTransferItems`, set item
 movement speed with `itemMovementSpeed`, and limit retained animations with `maxTransfers`.
-Disabling rendering clears the local animation queue and also suppresses debug lines. The server
-config can disable path calculation and transmission entirely with `enableTransferPaths`; when
+Disabling rendering clears the local animation queue. The server config can disable path
+calculation and transmission entirely with `enableTransferPaths`; when
 disabled, transfer logging remains available but the route resolver and visual payload sender are
 not invoked.
 
@@ -87,17 +85,18 @@ AE2's entry in the Mods menu.
    quantum bridges become explicit discontinuities rather than straight lines through unloaded
    space.
 4. Send the immutable route and complete display stack only to nearby players.
-5. Animate a fake item on the client, with the optional line debugger consuming the same route.
-   The transfer event never participates in storage, crafting, energy, or security logic.
+5. Animate a fake item on the client. The transfer event never participates in storage, crafting,
+   energy, or security logic.
 
 AE2 does retain a controller-route parent for each grid node/connection as part of channel
 calculation. That route is internal implementation state rather than public API, so the prototype
 accesses it through the isolated `TransferPathResolver` compatibility adapter. If that adapter
 cannot resolve a route, it reports the reason without affecting the real transfer.
 
-To keep busy networks readable and inexpensive, equivalent events should be coalesced per
-grid/endpoint/item over a short window and capped per client. Route snapshots can be cached until
-AE2 reports a pathing change.
+To keep busy networks readable and inexpensive, equivalent events are coalesced per server tick and
+capped per client. Client animations precompute their route segments, use logarithmic position
+lookup, reuse identical item model state within a frame, cache lighting while inside one block, and
+skip model extraction when the moving item is more than 128 blocks from the camera.
 
 ## Transparent cable treatment
 

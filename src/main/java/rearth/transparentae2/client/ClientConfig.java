@@ -17,10 +17,6 @@ public final class ClientConfig {
             .comment("Maximum number of recent item transfers retained by the client renderer.")
             .defineInRange("maxTransfers", 128, 1, 4096);
 
-    public static final ModConfigSpec.BooleanValue DEBUG_RENDER_TRANSFER_PATHS = BUILDER
-            .comment("Draw the route line followed by moving AE2 transfer items.")
-            .define("debugRenderTransferPaths", false);
-
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private ClientConfig() {

@@ -22,7 +22,6 @@ public final class TransparentAE2Client {
         modEventBus.addListener(this::registerClientPayloads);
         NeoForge.EVENT_BUS.addListener(ClientTransferPathRenderer::extract);
         NeoForge.EVENT_BUS.addListener(ClientTransferPathRenderer::submitItems);
-        NeoForge.EVENT_BUS.addListener(ClientTransferPathRenderer::render);
         NeoForge.EVENT_BUS.addListener(this::onLogout);
     }
 

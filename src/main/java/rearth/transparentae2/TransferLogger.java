@@ -26,8 +26,10 @@ public final class TransferLogger {
         try {
             if (amount > 0 && what instanceof AEItemKey item) {
                 var kind = source.machine().orElse(null) instanceof ImportBusPart ? PathKind.IMPORT : PathKind.INSERT;
-                log(kind.name(), item, amount, sourceEndpoint(source, true), NETWORK);
-                handlePath(kind, item, amount, sourceNode(source), false);
+                if (TransparentAE2.LOGGER.isDebugEnabled()) {
+                    log(kind.name(), item, amount, sourceEndpoint(source, true), NETWORK);
+                }
+                TransferBatcher.enqueue(kind, item, amount, sourceNode(source), false);
             }
         } catch (RuntimeException e) {
             TransparentAE2.LOGGER.warn("Failed to observe AE2 network insertion", e);
@@ -38,8 +40,10 @@ public final class TransferLogger {
         try {
             if (amount > 0 && what instanceof AEItemKey item) {
                 var kind = source.machine().orElse(null) instanceof ExportBusPart ? PathKind.EXPORT : PathKind.EXTRACT;
-                log(kind.name(), item, amount, NETWORK, sourceEndpoint(source, false));
-                handlePath(kind, item, amount, sourceNode(source), true);
+                if (TransparentAE2.LOGGER.isDebugEnabled()) {
+                    log(kind.name(), item, amount, NETWORK, sourceEndpoint(source, false));
+                }
+                TransferBatcher.enqueue(kind, item, amount, sourceNode(source), true);
             }
         } catch (RuntimeException e) {
             TransparentAE2.LOGGER.warn("Failed to observe AE2 network extraction", e);
@@ -49,16 +53,11 @@ public final class TransferLogger {
     public static void logCraftingDispatch(AEKey what, long amount, IGridNode cpu, IGridNode provider) {
         try {
             if (amount > 0 && what instanceof AEItemKey item) {
-                log("CRAFTING", item, amount, "crafting CPU",
-                        "crafting provider " + describeNode(provider));
-                if (Config.ENABLE_TRANSFER_PATHS.getAsBoolean()) {
-                    handleResolvedPath(
-                            PathKind.CRAFTING,
-                            item,
-                            amount,
-                            TransferPathResolver.resolveCrafting(cpu, provider),
-                            cpu != null ? cpu : provider);
+                if (TransparentAE2.LOGGER.isDebugEnabled()) {
+                    log("CRAFTING", item, amount, "crafting CPU",
+                            "crafting provider " + describeNode(provider));
                 }
+                TransferBatcher.enqueueCrafting(item, amount, cpu, provider);
             }
         } catch (RuntimeException e) {
             TransparentAE2.LOGGER.warn("Failed to observe AE2 crafting dispatch", e);
@@ -66,7 +65,6 @@ public final class TransferLogger {
     }
 
     private static void log(String kind, AEItemKey item, long amount, String from, String to) {
-
         var stack = item.getReadOnlyStack();
         var itemId = BuiltInRegistries.ITEM.getKey(item.getItem());
         var components = stack.getComponentsPatch().isEmpty() ? "" : " components=" + stack.getComponentsPatch();
@@ -74,19 +72,11 @@ public final class TransferLogger {
                 kind, amount, itemId, components, from, to);
     }
 
-    private static void handlePath(
-            PathKind kind,
-            AEItemKey item,
-            long amount,
-            IGridNode endpoint,
-            boolean controllerFirst) {
-        if (!Config.ENABLE_TRANSFER_PATHS.getAsBoolean()) {
-            return;
-        }
-        handleResolvedPath(kind, item, amount, TransferPathResolver.resolve(endpoint, controllerFirst), endpoint);
+    public static boolean shouldObserveCrafting() {
+        return Config.ENABLE_TRANSFER_PATHS.getAsBoolean() || TransparentAE2.LOGGER.isDebugEnabled();
     }
 
-    private static void handleResolvedPath(
+    static void handleResolvedPath(
             PathKind kind,
             AEItemKey item,
             long amount,
@@ -96,8 +86,10 @@ public final class TransferLogger {
             return;
         }
 
-        var itemId = BuiltInRegistries.ITEM.getKey(item.getItem());
-        TransparentAE2.LOGGER.debug("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path.format());
+        if (TransparentAE2.LOGGER.isDebugEnabled()) {
+            var itemId = BuiltInRegistries.ITEM.getKey(item.getItem());
+            TransparentAE2.LOGGER.debug("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path.format());
+        }
         if (path.available()) {
             var payload = new TransferPathPayload(
                     kind,
