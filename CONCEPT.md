@@ -70,6 +70,14 @@ config can disable path calculation and transmission entirely with `enableTransf
 disabled, transfer logging remains available but the route resolver and visual payload sender are
 not invoked.
 
+Resolved routes containing cable nodes but only opaque untreated covered, smart, or dense cables
+are discarded on the server. Glass cables and treated smart/dense cables make a route eligible for
+visualization. The eligibility check happens before world-position extraction, scale calculation,
+payload construction, and sending, so wholly hidden transfers never reach the client renderer.
+
+Both config sections are exposed through NeoForge's generic configuration screen from Transparent
+AE2's entry in the Mods menu.
+
 ## Visual implementation
 
 1. Convert observed operations into a small server-side event containing the item key, amount,

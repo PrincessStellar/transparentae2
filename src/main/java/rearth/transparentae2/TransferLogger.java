@@ -92,6 +92,10 @@ public final class TransferLogger {
             long amount,
             TransferPathResolver.ResolvedPath path,
             IGridNode anchor) {
+        if (path.available() && !path.shouldRenderTransfer()) {
+            return;
+        }
+
         var itemId = BuiltInRegistries.ITEM.getKey(item.getItem());
         TransparentAE2.LOGGER.debug("[AE2 PATH/{}] {}x {} | {}", kind, amount, itemId, path.format());
         if (path.available()) {

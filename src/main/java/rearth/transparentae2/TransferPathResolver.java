@@ -17,6 +17,7 @@ import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.me.pathfinding.IPathItem;
 import appeng.parts.AEBasePart;
 import appeng.parts.networking.CablePart;
+import rearth.transparentae2.cable.CableTreatmentState;
 
 final class TransferPathResolver {
     private TransferPathResolver() {
@@ -121,25 +122,45 @@ final class TransferPathResolver {
             return describe(owner.getClass().getSimpleName(), blockEntity);
         }
         if (owner instanceof AEBasePart part) {
-            var cableWidth = part instanceof CablePart cable ? minimumCableWidth(cable.getCableConnectionType()) : 0;
-            return describe(owner.getClass().getSimpleName(), part.getBlockEntity(), cableWidth);
+            var cableWidth = 0;
+            var exposesTransfer = false;
+            if (part instanceof CablePart cable) {
+                cableWidth = minimumCableWidth(cable.getCableConnectionType());
+                exposesTransfer = exposesTransfer(cable);
+            }
+            return describe(owner.getClass().getSimpleName(), part.getBlockEntity(), cableWidth, exposesTransfer);
         }
-        return new PathPoint(null, owner.getClass().getSimpleName() + " (no world position)", 0);
+        return new PathPoint(null, owner.getClass().getSimpleName() + " (no world position)", 0, false);
     }
 
     private static PathPoint describe(String type, BlockEntity blockEntity) {
-        return describe(type, blockEntity, 0);
+        return describe(type, blockEntity, 0, false);
     }
 
-    private static PathPoint describe(String type, BlockEntity blockEntity, int cableWidth) {
+    private static PathPoint describe(
+            String type,
+            BlockEntity blockEntity,
+            int cableWidth,
+            boolean exposesTransfer) {
         var level = blockEntity.getLevel();
         if (level == null) {
-            return new PathPoint(null, type + " @ unloaded " + blockEntity.getBlockPos().toShortString(), cableWidth);
+            return new PathPoint(
+                    null,
+                    type + " @ unloaded " + blockEntity.getBlockPos().toShortString(),
+                    cableWidth,
+                    exposesTransfer);
         }
 
         var position = GlobalPos.of(level.dimension(), blockEntity.getBlockPos());
         return new PathPoint(position, type + " @ " + level.dimension().identifier() + " "
-                + blockEntity.getBlockPos().toShortString(), cableWidth);
+                + blockEntity.getBlockPos().toShortString(), cableWidth, exposesTransfer);
+    }
+
+    private static boolean exposesTransfer(CablePart cable) {
+        if (cable.getCableConnectionType() == AECableType.GLASS) {
+            return true;
+        }
+        return cable instanceof CableTreatmentState treatment && treatment.transparentae2$isCableTreated();
     }
 
     private static int minimumCableWidth(AECableType cableType) {
@@ -195,6 +216,21 @@ final class TransferPathResolver {
                     .orElse(4);
         }
 
+        boolean shouldRenderTransfer() {
+            var foundCable = false;
+            for (var leg : legs) {
+                for (var point : leg.points) {
+                    if (point.cableWidth > 0) {
+                        foundCable = true;
+                        if (point.exposesTransfer) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return !foundCable;
+        }
+
         String format() {
             if (failure != null) {
                 return "unavailable: " + failure;
@@ -239,7 +275,7 @@ final class TransferPathResolver {
         }
     }
 
-    record PathPoint(GlobalPos position, String label, int cableWidth) {
+    record PathPoint(GlobalPos position, String label, int cableWidth, boolean exposesTransfer) {
     }
 
     record PathHop(int usedChannels, boolean inWorld) {
