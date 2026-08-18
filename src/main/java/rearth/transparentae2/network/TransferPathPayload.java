@@ -17,8 +17,8 @@ public record TransferPathPayload(
         long amount,
         List<List<GlobalPos>> legs,
         int minimumCableWidth) implements CustomPacketPayload {
-    private static final int MAX_LEGS = 64;
-    private static final int MAX_POINTS_PER_LEG = 512;
+    private static final int MAX_LEGS = 128;
+    private static final int MAX_POINTS_PER_LEG = 800;
     private static final int MIN_CABLE_WIDTH = 1;
     private static final int MAX_CABLE_WIDTH = 10;
 

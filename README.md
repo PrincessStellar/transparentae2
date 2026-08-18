@@ -1,25 +1,56 @@
+# Transparent AE2
 
-Installation information
-=======
+Transparent AE2 makes item movement inside an Applied Energistics 2 network visible.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+Items are shown moving through AE2 glass cables and specially treated smart or dense cables. The
+animation follows the route that AE2 assigned between a machine and the controller. The real item
+transfer still happens instantly; the moving item is only a visual effect.
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+## Features
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+- Shows imported, exported, inserted, extracted, and crafting-input items moving through an ME
+  network.
+- Adds a reusable Cable Treatment Applicator. Use it on a smart or dense cable to show items through
+  that cable. Use it again to remove the treatment.
+- Adds ready-made transparent smart, dense smart, and dense covered cable items.
+- Keeps a treated cable treated when it is broken, placed again, or recolored.
+- Handles gaps in a route, such as P2P or quantum links, by moving the item between the visible
+  parts instead of drawing a false connection through the world.
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+## What it does not do
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+- It does not change how AE2 stores, moves, crafts, or secures items.
+- It does not turn the animation into a real item entity. It cannot be picked up or interact with
+  the world.
+- It does not slow down item transfers to match the animation.
+- It does not currently show fluid transfers.
+- It does not show routes on controllerless, booting, or conflicting AE2 networks.
+- It does not show a route when every cable on that route is an opaque, untreated cable.
+
+## Performance impact
+
+The server observes completed AE2 item transfers and calculates their controller routes once per
+tick. Similar transfers are grouped together before the route is sent to nearby players. The client
+keeps a limited number of recent animations and only renders nearby items.
+
+Most small installations should see little impact. Very large or very busy ME networks can require
+more route calculations and network traffic, especially when many different items move at once. If
+needed, the server can disable transfer-path calculation completely.
+
+## Configuration
+
+Server configuration:
+
+- `enableTransferPaths` enables or disables route calculation and animation packets.
+
+Client configuration:
+
+- `renderTransferItems` enables or disables moving item animations.
+- `itemMovementSpeed` changes the animation speed.
+- `maxTransfers` limits how many recent animations the client keeps.
+
+The client settings are available from Transparent AE2's entry in NeoForge's Mods screen.
+
+## Credits
+
+Cable Transparency Applicator Texture: From MalcolmRiley's [unused textures](https://github.com/malcolmriley/unused-textures)

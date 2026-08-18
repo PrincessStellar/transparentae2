@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "minecraft:item/brush"
+    "model": "transparentae2:item/cable_treatment_applicator"
   }
 }
