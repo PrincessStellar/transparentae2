@@ -2,8 +2,8 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "c": "ae2:fluix_smart_cable",
-    "g": "ae2:quartz_glass"
+    "c": { "item": "ae2:fluix_smart_cable" },
+    "g": { "item": "ae2:quartz_glass" }
   },
   "pattern": [
     "ccc",

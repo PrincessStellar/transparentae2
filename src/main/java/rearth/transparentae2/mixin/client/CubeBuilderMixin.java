@@ -1,8 +1,8 @@
 package rearth.transparentae2.mixin.client;
 
-import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 
-import appeng.client.render.CubeBuilder;
+import appeng.client.render.cablebus.CubeBuilder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -27,10 +27,10 @@ abstract class CubeBuilderMixin {
     }
 
     @ModifyVariable(
-            method = "setTexture(Lnet/minecraft/client/resources/model/sprite/Material$Baked;)V",
+            method = "setTexture(Lnet/minecraft/client/renderer/texture/TextureAtlasSprite;)V",
             at = @At("HEAD"),
             argsOnly = true)
-    private Material.Baked transparentae2$identifyCableTexture(Material.Baked texture) {
+    private TextureAtlasSprite transparentae2$identifyCableTexture(TextureAtlasSprite texture) {
         return CableRenderContext.identifyCableTexture(texture);
     }
 

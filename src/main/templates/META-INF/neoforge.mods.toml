@@ -4,6 +4,10 @@
 # Note that there are a couple of TOML lists in this file.
 # Find more information on toml format here:  https://github.com/toml-lang/toml
 
+# NeoForge 21.1 uses FML's Java mod loader.
+modLoader="javafml"
+loaderVersion="[1,)"
+
 # The license for you mod. This is mandatory metadata and allows for easier comprehension of your redistributive properties.
 # Review your options at https://choosealicense.com/. All rights reserved is the default copyright stance, and is thus the default here.
 license="${mod_license}"
@@ -85,7 +89,7 @@ config="${mod_id}.mixins.json"
 [[dependencies.${mod_id}]]
     modId="ae2"
     type="required"
-    versionRange="[${ae2_version},)"
+    versionRange="[${ae2_version},20.0.0)"
     ordering="AFTER"
     side="BOTH"
 

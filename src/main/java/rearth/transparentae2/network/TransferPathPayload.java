@@ -7,7 +7,7 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import rearth.transparentae2.TransparentAE2;
 
@@ -23,7 +23,7 @@ public record TransferPathPayload(
     private static final int MAX_CABLE_WIDTH = 10;
 
     public static final Type<TransferPathPayload> TYPE = new Type<>(
-            Identifier.fromNamespaceAndPath(TransparentAE2.MODID, "transfer_path"));
+            ResourceLocation.fromNamespaceAndPath(TransparentAE2.MODID, "transfer_path"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, TransferPathPayload> STREAM_CODEC = StreamCodec.ofMember(
             TransferPathPayload::encode,

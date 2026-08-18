@@ -38,10 +38,10 @@ public final class CableTreatmentApplicatorItem extends Item {
             var host = cable.getHost();
             host.markForUpdate();
             host.markForSave();
-            player.sendOverlayMessage(Component.translatable(
+            player.displayClientMessage(Component.translatable(
                     treated
                             ? "message.transparentae2.cable_treatment_applied"
-                            : "message.transparentae2.cable_treatment_removed"));
+                            : "message.transparentae2.cable_treatment_removed"), true);
         }
 
         return InteractionResult.SUCCESS;

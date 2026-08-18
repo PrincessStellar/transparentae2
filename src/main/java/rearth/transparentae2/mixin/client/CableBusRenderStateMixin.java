@@ -1,6 +1,6 @@
 package rearth.transparentae2.mixin.client;
 
-import appeng.block.networking.CableBusRenderState;
+import appeng.client.render.cablebus.CableBusRenderState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

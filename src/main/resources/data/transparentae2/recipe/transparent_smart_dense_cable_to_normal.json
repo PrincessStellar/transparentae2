@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    "transparentae2:transparent_smart_dense_cable"
+    { "item": "transparentae2:transparent_smart_dense_cable" }
   ],
   "result": {
     "id": "ae2:fluix_smart_dense_cable"

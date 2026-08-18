@@ -2,11 +2,11 @@ package rearth.transparentae2.mixin.client;
 
 import java.util.EnumMap;
 
-import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 
 import appeng.api.util.AECableType;
 import appeng.api.util.AEColor;
-import appeng.block.networking.CableCoreType;
+import appeng.client.render.cablebus.CableCoreType;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -19,11 +19,11 @@ import rearth.transparentae2.client.CableRenderContext;
 abstract class CableBuilderMixin {
     @Shadow
     @Final
-    private EnumMap<CableCoreType, EnumMap<AEColor, Material.Baked>> coreTextures;
+    private EnumMap<CableCoreType, EnumMap<AEColor, TextureAtlasSprite>> coreTextures;
 
     @Shadow
     @Final
-    private EnumMap<AECableType, EnumMap<AEColor, Material.Baked>> connectionTextures;
+    private EnumMap<AECableType, EnumMap<AEColor, TextureAtlasSprite>> connectionTextures;
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void transparentae2$registerCableTextures(CallbackInfo ci) {

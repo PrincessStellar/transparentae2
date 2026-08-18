@@ -1,10 +1,10 @@
 package rearth.transparentae2.mixin;
 
 import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
 
 import appeng.parts.AEBasePart;
 import appeng.util.SettingsFrom;
@@ -35,16 +35,22 @@ abstract class AEBasePartMixin implements CableTreatmentState {
     }
 
     @Inject(method = "writeToNBT", at = @At("TAIL"))
-    private void transparentae2$writeCableTreatment(ValueOutput output, CallbackInfo ci) {
+    private void transparentae2$writeCableTreatment(
+            CompoundTag output,
+            HolderLookup.Provider registries,
+            CallbackInfo ci) {
         if (transparentae2$isTreatableCable() && transparentae2$cableTreated) {
             output.putBoolean("transparentae2CableTreated", true);
         }
     }
 
     @Inject(method = "readFromNBT", at = @At("TAIL"))
-    private void transparentae2$readCableTreatment(ValueInput input, CallbackInfo ci) {
+    private void transparentae2$readCableTreatment(
+            CompoundTag input,
+            HolderLookup.Provider registries,
+            CallbackInfo ci) {
         if (transparentae2$isTreatableCable()) {
-            transparentae2$cableTreated = input.getBooleanOr("transparentae2CableTreated", false);
+            transparentae2$cableTreated = input.getBoolean("transparentae2CableTreated");
         }
     }
 

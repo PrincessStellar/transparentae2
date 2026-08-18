@@ -3,7 +3,7 @@ package rearth.transparentae2.mixin.client;
 import net.minecraft.core.Direction;
 
 import appeng.api.parts.IPart;
-import appeng.block.networking.CableBusRenderState;
+import appeng.client.render.cablebus.CableBusRenderState;
 import appeng.parts.CableBusContainer;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;

@@ -21,7 +21,7 @@ public final class ModItems {
     public static final DeferredItem<CableTreatmentApplicatorItem> CABLE_TREATMENT_APPLICATOR = ITEMS.registerItem(
             "cable_treatment_applicator",
             CableTreatmentApplicatorItem::new,
-            () -> new Item.Properties().stacksTo(1));
+            new Item.Properties().stacksTo(1));
 
     public static final DeferredItem<ColoredPartItem<SmartCablePart>> TRANSPARENT_SMART_CABLE = ITEMS.registerItem(
             "transparent_smart_cable",
@@ -30,7 +30,7 @@ public final class ModItems {
                     SmartCablePart.class,
                     SmartCablePart::new,
                     AEColor.TRANSPARENT),
-            Item.Properties::new);
+            new Item.Properties());
 
     public static final DeferredItem<ColoredPartItem<SmartDenseCablePart>> TRANSPARENT_SMART_DENSE_CABLE =
             ITEMS.registerItem(
@@ -40,7 +40,7 @@ public final class ModItems {
                             SmartDenseCablePart.class,
                             SmartDenseCablePart::new,
                             AEColor.TRANSPARENT),
-                    Item.Properties::new);
+                    new Item.Properties());
 
     public static final DeferredItem<ColoredPartItem<CoveredDenseCablePart>> TRANSPARENT_COVERED_DENSE_CABLE =
             ITEMS.registerItem(
@@ -50,7 +50,7 @@ public final class ModItems {
                             CoveredDenseCablePart.class,
                             CoveredDenseCablePart::new,
                             AEColor.TRANSPARENT),
-                    Item.Properties::new);
+                    new Item.Properties());
 
     private ModItems() {
     }

@@ -1,6 +1,7 @@
 package rearth.transparentae2.network;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 import net.minecraft.core.GlobalPos;
 import net.minecraft.server.MinecraftServer;
@@ -12,12 +13,21 @@ import appeng.api.networking.IGridNode;
 
 public final class TransferPathNetworking {
     private static final double VIEW_DISTANCE_SQUARED = 128.0 * 128.0;
+    private static Consumer<TransferPathPayload> clientHandler = payload -> {
+    };
 
     private TransferPathNetworking() {
     }
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("3").playToClient(TransferPathPayload.TYPE, TransferPathPayload.STREAM_CODEC);
+        event.registrar("1").playToClient(
+                TransferPathPayload.TYPE,
+                TransferPathPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> clientHandler.accept(payload)));
+    }
+
+    public static void setClientHandler(Consumer<TransferPathPayload> handler) {
+        clientHandler = handler;
     }
 
     public static void send(TransferPathPayload payload, IGridNode anchor) {

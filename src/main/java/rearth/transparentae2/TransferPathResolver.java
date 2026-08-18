@@ -152,7 +152,7 @@ final class TransferPathResolver {
         }
 
         var position = GlobalPos.of(level.dimension(), blockEntity.getBlockPos());
-        return new PathPoint(position, type + " @ " + level.dimension().identifier() + " "
+        return new PathPoint(position, type + " @ " + level.dimension().location() + " "
                 + blockEntity.getBlockPos().toShortString(), cableWidth, exposesTransfer);
     }
 

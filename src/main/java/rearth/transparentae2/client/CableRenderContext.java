@@ -5,16 +5,16 @@ import java.util.EnumMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 
 import appeng.api.util.AECableType;
 import appeng.api.util.AEColor;
-import appeng.block.networking.CableCoreType;
+import appeng.client.render.cablebus.CableCoreType;
 
 public final class CableRenderContext {
     private static final ThreadLocal<Boolean> TREATMENT_ACTIVE = ThreadLocal.withInitial(() -> false);
     private static final ThreadLocal<Boolean> CHANNEL_OVERLAY = ThreadLocal.withInitial(() -> false);
-    private static volatile Map<Material.Baked, Material.Baked> baseCableTextures = Map.of();
+    private static volatile Map<TextureAtlasSprite, TextureAtlasSprite> baseCableTextures = Map.of();
 
     private CableRenderContext() {
     }
@@ -36,7 +36,7 @@ public final class CableRenderContext {
         return TREATMENT_ACTIVE.get() && CHANNEL_OVERLAY.get();
     }
 
-    public static Material.Baked identifyCableTexture(Material.Baked texture) {
+    public static TextureAtlasSprite identifyCableTexture(TextureAtlasSprite texture) {
         if (TREATMENT_ACTIVE.get()) {
             var replacement = baseCableTextures.get(texture);
             CHANNEL_OVERLAY.set(replacement == null);
@@ -46,9 +46,9 @@ public final class CableRenderContext {
     }
 
     public static void registerCableTextures(
-            EnumMap<CableCoreType, EnumMap<AEColor, Material.Baked>> coreTextures,
-            EnumMap<AECableType, EnumMap<AEColor, Material.Baked>> connectionTextures) {
-        var textures = new IdentityHashMap<Material.Baked, Material.Baked>();
+            EnumMap<CableCoreType, EnumMap<AEColor, TextureAtlasSprite>> coreTextures,
+            EnumMap<AECableType, EnumMap<AEColor, TextureAtlasSprite>> connectionTextures) {
+        var textures = new IdentityHashMap<TextureAtlasSprite, TextureAtlasSprite>();
         for (var texturesByColor : coreTextures.values()) {
             for (var texture : texturesByColor.values()) {
                 textures.put(texture, texture);

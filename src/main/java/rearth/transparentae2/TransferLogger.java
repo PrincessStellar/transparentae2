@@ -163,8 +163,8 @@ public final class TransferLogger {
     }
 
     private static String describePlayer(Player player) {
-        return "player " + player.getGameProfile().name() + " @ "
-                + player.level().dimension().identifier() + " " + player.blockPosition().toShortString();
+        return "player " + player.getGameProfile().getName() + " @ "
+                + player.level().dimension().location() + " " + player.blockPosition().toShortString();
     }
 
     private static String describe(BlockEntity blockEntity) {
@@ -173,7 +173,7 @@ public final class TransferLogger {
 
     private static String describe(BlockEntity blockEntity, BlockPos position) {
         var level = blockEntity.getLevel();
-        var dimension = level == null ? "unloaded" : level.dimension().identifier().toString();
+        var dimension = level == null ? "unloaded" : level.dimension().location().toString();
         return "@ " + dimension + " " + position.toShortString();
     }
 }

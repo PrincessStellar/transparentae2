@@ -3,29 +3,25 @@ package rearth.transparentae2.client;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.resources.Identifier;
-import net.minecraft.util.Util;
-import net.minecraft.util.context.ContextKey;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
-import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+
 import appeng.api.stacks.AEItemKey;
-import rearth.transparentae2.TransparentAE2;
 import rearth.transparentae2.network.TransferPathPayload;
 
 public final class ClientTransferPathRenderer {
@@ -33,8 +29,6 @@ public final class ClientTransferPathRenderer {
     private static final float ITEM_SCALE_PER_CABLE_UNIT = 0.2F;
     private static final float NON_BLOCK_ITEM_SCALE = 0.8F;
     private static final float GROUND_MODEL_Y_OFFSET = 3.0F / 16.0F;
-    private static final ContextKey<List<MovingItemRenderState>> ITEM_RENDER_STATES = new ContextKey<>(
-            Identifier.fromNamespaceAndPath(TransparentAE2.MODID, "moving_transfer_items"));
     private static final Deque<MovingTransfer> TRANSFERS = new ArrayDeque<>();
 
     private ClientTransferPathRenderer() {
@@ -57,7 +51,10 @@ public final class ClientTransferPathRenderer {
         TRANSFERS.clear();
     }
 
-    public static void extract(ExtractLevelRenderStateEvent event) {
+    public static void render(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL) {
+            return;
+        }
         if (!ClientConfig.RENDER_TRANSFER_ITEMS.getAsBoolean()) {
             TRANSFERS.clear();
             return;
@@ -68,74 +65,45 @@ public final class ClientTransferPathRenderer {
             return;
         }
 
+        var minecraft = Minecraft.getInstance();
+        var level = minecraft.level;
+        if (level == null) {
+            return;
+        }
+
         var now = Util.getMillis();
         TRANSFERS.removeIf(transfer -> transfer.retentionEndsAtMillis <= now);
-        var renderStates = new ArrayList<MovingItemRenderState>();
-        var modelResolver = Minecraft.getInstance().getItemModelResolver();
-        var camera = event.getRenderState().cameraRenderState.pos;
-        var itemStates = new HashMap<AEItemKey, ItemStackRenderState>();
+        var camera = minecraft.gameRenderer.getMainCamera().getPosition();
+        var poseStack = event.getPoseStack();
+        var buffers = minecraft.renderBuffers().bufferSource();
+        var itemRenderer = minecraft.getItemRenderer();
 
         for (var transfer : TRANSFERS) {
-            var position = transfer.positionAt(now);
-            if (position == null
-                    || !position.dimension.equals(event.getLevel().dimension())
-                    || position.position.distanceToSqr(camera) > MAX_RENDER_DISTANCE_SQUARED) {
+            var positionedItem = transfer.positionAt(now);
+            if (positionedItem == null
+                    || !positionedItem.dimension.equals(level.dimension())
+                    || positionedItem.position.distanceToSqr(camera) > MAX_RENDER_DISTANCE_SQUARED) {
                 continue;
             }
 
-            var itemState = itemStates.computeIfAbsent(transfer.item, ignored -> {
-                var state = new ItemStackRenderState();
-                modelResolver.updateForTopItem(
-                        state,
-                        transfer.item.getReadOnlyStack(),
-                        ItemDisplayContext.GROUND,
-                        event.getLevel(),
-                        null,
-                        transfer.seed);
-                return state;
-            });
-            var light = transfer.lightAt(event, BlockPos.containing(position.position));
-            var rotation = (now - transfer.startedAtMillis) * 0.002F;
-            renderStates.add(new MovingItemRenderState(
-                    position.position,
-                    itemState,
-                    light,
-                    rotation,
-                    transfer.itemScale));
-        }
-
-        if (!renderStates.isEmpty()) {
-            event.getRenderState().setRenderData(ITEM_RENDER_STATES, List.copyOf(renderStates));
-        }
-    }
-
-    public static void submitItems(SubmitCustomGeometryEvent event) {
-        if (!ClientConfig.RENDER_TRANSFER_ITEMS.getAsBoolean()) {
-            return;
-        }
-
-        List<MovingItemRenderState> renderStates = event.getLevelRenderState().getRenderData(ITEM_RENDER_STATES);
-        if (renderStates == null) {
-            return;
-        }
-
-        var poseStack = event.getPoseStack();
-        var camera = event.getLevelRenderState().cameraRenderState.pos;
-        for (var renderState : renderStates) {
-            var position = renderState.position.subtract(camera);
+            var position = positionedItem.position.subtract(camera);
             poseStack.pushPose();
             poseStack.translate(position.x, position.y, position.z);
-            poseStack.mulPose(Axis.YP.rotation(renderState.rotation));
-            poseStack.scale(renderState.scale, renderState.scale, renderState.scale);
+            poseStack.mulPose(Axis.YP.rotation((now - transfer.startedAtMillis) * 0.002F));
+            poseStack.scale(transfer.itemScale, transfer.itemScale, transfer.itemScale);
             poseStack.translate(0, -GROUND_MODEL_Y_OFFSET, 0);
-            renderState.item.submit(
-                    poseStack,
-                    event.getSubmitNodeCollector(),
-                    renderState.light,
+            itemRenderer.renderStatic(
+                    transfer.item.getReadOnlyStack(),
+                    ItemDisplayContext.GROUND,
+                    transfer.lightAt(level, BlockPos.containing(positionedItem.position)),
                     OverlayTexture.NO_OVERLAY,
-                    0);
+                    poseStack,
+                    buffers,
+                    level,
+                    transfer.seed);
             poseStack.popPose();
         }
+        buffers.endBatch();
     }
 
     private static void trimToConfiguredLimit() {
@@ -145,16 +113,7 @@ public final class ClientTransferPathRenderer {
         }
     }
 
-    private record MovingItemRenderState(
-            Vec3 position,
-            ItemStackRenderState item,
-            int light,
-            float rotation,
-            float scale) {
-    }
-
-    private record PositionedItem(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
-            Vec3 position) {
+    private record PositionedItem(ResourceKey<Level> dimension, Vec3 position) {
     }
 
     private static final class MovingTransfer {
@@ -211,7 +170,6 @@ public final class ClientTransferPathRenderer {
             if (now >= travelEndsAtMillis) {
                 return null;
             }
-
             if (routeLength <= 1.0E-6) {
                 return stationaryPosition;
             }
@@ -238,10 +196,10 @@ public final class ClientTransferPathRenderer {
             return segments[low];
         }
 
-        int lightAt(ExtractLevelRenderStateEvent event, BlockPos position) {
+        int lightAt(Level level, BlockPos position) {
             if (!position.equals(lightPosition)) {
                 lightPosition = position;
-                light = LevelRenderer.getLightCoords(event.getLevel(), position);
+                light = LevelRenderer.getLightColor(level, position);
             }
             return light;
         }
@@ -259,12 +217,7 @@ public final class ClientTransferPathRenderer {
                         var length = fromPosition.distanceTo(toPosition);
                         if (length > 1.0E-6) {
                             distance += length;
-                            result.add(new Segment(
-                                    from.dimension(),
-                                    fromPosition,
-                                    toPosition,
-                                    length,
-                                    distance));
+                            result.add(new Segment(from.dimension(), fromPosition, toPosition, length, distance));
                         }
                     }
                 }
@@ -288,7 +241,7 @@ public final class ClientTransferPathRenderer {
     }
 
     private record Segment(
-            net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
+            ResourceKey<Level> dimension,
             Vec3 from,
             Vec3 to,
             double length,
