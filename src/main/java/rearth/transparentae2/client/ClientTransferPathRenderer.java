@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Objects;
 
 import com.mojang.math.Axis;
+import org.joml.Quaternionf;
 
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
@@ -73,10 +74,18 @@ public final class ClientTransferPathRenderer {
 
         var now = Util.getMillis();
         TRANSFERS.removeIf(transfer -> transfer.retentionEndsAtMillis <= now);
-        var camera = minecraft.gameRenderer.getMainCamera().getPosition();
+        var mainCamera = minecraft.gameRenderer.getMainCamera();
+        var camera = mainCamera.getPosition();
         var poseStack = event.getPoseStack();
         var buffers = minecraft.renderBuffers().bufferSource();
         var itemRenderer = minecraft.getItemRenderer();
+
+        // RenderLevelStageEvent's pose stack already contains the camera rotation. Undo it before
+        // applying world coordinates; the active model-view matrix applies the view transform.
+        poseStack.pushPose();
+        var cameraRotation = new Quaternionf(mainCamera.rotation()).invert();
+        poseStack.mulPose(cameraRotation);
+        poseStack.translate(-camera.x, -camera.y, -camera.z);
 
         for (var transfer : TRANSFERS) {
             var positionedItem = transfer.positionAt(now);
@@ -86,9 +95,11 @@ public final class ClientTransferPathRenderer {
                 continue;
             }
 
-            var position = positionedItem.position.subtract(camera);
             poseStack.pushPose();
-            poseStack.translate(position.x, position.y, position.z);
+            poseStack.translate(
+                    positionedItem.position.x,
+                    positionedItem.position.y,
+                    positionedItem.position.z);
             poseStack.mulPose(Axis.YP.rotation((now - transfer.startedAtMillis) * 0.002F));
             poseStack.scale(transfer.itemScale, transfer.itemScale, transfer.itemScale);
             poseStack.translate(0, -GROUND_MODEL_Y_OFFSET, 0);
@@ -103,6 +114,7 @@ public final class ClientTransferPathRenderer {
                     transfer.seed);
             poseStack.popPose();
         }
+        poseStack.popPose();
         buffers.endBatch();
     }
 
