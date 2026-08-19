@@ -1,21 +1,20 @@
 # Transparent AE2
 
-Transparent AE2 makes item movement inside an Applied Energistics 2 network visible.
+Renders moving items inside AE2 networks. Works with see-through cables (like normal me cables) and also 
+adds transparent versions of the smart / dense cables.
 
 Items are shown moving through AE2 glass cables and specially treated smart or dense cables. The
-animation follows the route that AE2 assigned between a machine and the controller. The real item
-transfer still happens instantly; the moving item is only a visual effect.
+animation follows the route that AE2 assignd between a machine and the controller. The real item
+transfer still happens instantly. The moving item is only a visual effect.
 
 ## Features
 
 - Shows imported, exported, inserted, extracted, and crafting-input items moving through an ME
   network.
-- Adds a reusable Cable Treatment Applicator. Use it on a smart or dense cable to show items through
+- Existing AE2 transfer / working logic is untouched.
+- Adds a reusable Cable Transparency Applicator Item. Use it on a smart or dense cable to show items through
   that cable. Use it again to remove the treatment.
 - Adds ready-made transparent smart, dense smart, and dense covered cable items.
-- Keeps a treated cable treated when it is broken, placed again, or recolored.
-- Handles gaps in a route, such as P2P or quantum links, by moving the item between the visible
-  parts instead of drawing a false connection through the world.
 
 ## What it does not do
 
@@ -25,7 +24,7 @@ transfer still happens instantly; the moving item is only a visual effect.
 - It does not slow down item transfers to match the animation.
 - It does not currently show fluid transfers.
 - It does not show routes on controllerless, booting, or conflicting AE2 networks.
-- It does not show a route when every cable on that route is an opaque, untreated cable.
+- It does not show a route when every cable on that route is an opaque cable.
 
 ## Performance impact
 
@@ -35,7 +34,8 @@ keeps a limited number of recent animations and only renders nearby items.
 
 Most small installations should see little impact. Very large or very busy ME networks can require
 more route calculations and network traffic, especially when many different items move at once. If
-needed, the server can disable transfer-path calculation completely.
+needed, the server can disable transfer-path calculation completely. The calculations can be disabled
+on the server level, or the client can disable the rendering. Both can be toggled independently.
 
 ## Configuration
 
@@ -48,8 +48,6 @@ Client configuration:
 - `renderTransferItems` enables or disables moving item animations.
 - `itemMovementSpeed` changes the animation speed.
 - `maxTransfers` limits how many recent animations the client keeps.
-
-The client settings are available from Transparent AE2's entry in NeoForge's Mods screen.
 
 ## Credits
 
