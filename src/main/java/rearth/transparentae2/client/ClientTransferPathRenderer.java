@@ -27,8 +27,8 @@ import rearth.transparentae2.network.TransferPathPayload;
 
 public final class ClientTransferPathRenderer {
     private static final double MAX_RENDER_DISTANCE_SQUARED = 128.0 * 128.0;
-    private static final float ITEM_SCALE_PER_CABLE_UNIT = 0.2F;
-    private static final float NON_BLOCK_ITEM_SCALE = 0.8F;
+    private static final float ITEM_SCALE_PER_CABLE_UNIT = 0.195F;
+    private static final float NON_BLOCK_ITEM_SCALE = 0.6F;
     private static final float GROUND_MODEL_Y_OFFSET = 3.0F / 16.0F;
     private static final Deque<MovingTransfer> TRANSFERS = new ArrayDeque<>();
 
